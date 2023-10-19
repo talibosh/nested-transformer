@@ -43,6 +43,7 @@ class NestNet(nn.Module):
     config = self.config
     num_layers_per_block = config.num_layers_per_block
     num_blocks = len(num_layers_per_block)
+    #save_gradCAT_data = config.save_gradCAT_data
     # Here we just assume image/patch size are squared.
     assert inputs.shape[1] == inputs.shape[2]
     assert inputs.shape[1] % config.init_patch_embed_size == 0
@@ -97,12 +98,17 @@ class NestNet(nn.Module):
             **encoder_dict, path_drop=path_drop[block_idx])(
                 x)
         block_idx = block_idx + 1
+      # add here saving of feature maps for later use in GradCAT alg
+      #if save_gradCAT_data:
+      #  uu=0
+
       if i < num_blocks - 1:
         grid_size = int(math.sqrt(x.shape[1]))
         if scale_hidden_dims:
           output_dim = x.shape[-1] * scale_hidden_dims
         else:
           output_dim = None
+
 
         x = self_attention.ConvPool(
             grid_size=(grid_size, grid_size),
