@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="tali@132.75.250.245:22 password (2)" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="tali@132.75.250.245:22 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/tali/mappingPjt/nst" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="tali@132.75.250.245:22 password (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/tali/mappingPjt/nst" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="tali@132.75.250.245:22 password (3)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/tali/mappingPjt/nst" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
