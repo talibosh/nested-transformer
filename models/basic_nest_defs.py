@@ -1,5 +1,7 @@
 import functools
 import ml_collections
+import sys
+from models import nest_bricks
 
 MODELS = {}
 
@@ -37,7 +39,7 @@ def nest_tiny_s16_32(config):
 
   if config.get("nest"):
     nest.update(config.nest)
-  return functools.partial(NestNet, config=nest)
+  return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
 
 
 @register
@@ -53,7 +55,7 @@ def nest_small_s16_32(config):
 
   if config.get("nest"):
     nest.update(config.nest)
-  return functools.partial(NestNet, config=nest)
+  return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
 
 
 @register
@@ -69,7 +71,7 @@ def nest_base_s16_32(config):
 
   if config.get("nest"):
     nest.update(config.nest)
-  return functools.partial(NestNet, config=nest)
+  return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
 
 
 @register
@@ -90,7 +92,7 @@ def nest_tiny_s196_224(config):
 
   if config.get("nest"):
     nest.update(config.nest)
-  return functools.partial(NestNet, config=nest)
+  return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
 
 
 @register
@@ -108,7 +110,7 @@ def nest_small_s196_224(config):
 
   if config.get("nest"):
     nest.update(config.nest)
-  return functools.partial(NestNet, config=nest)
+  return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
 
 
 @register
@@ -126,7 +128,7 @@ def nest_base_s196_224(config):
 
   if config.get("nest"):
     nest.update(config.nest)
-  return functools.partial(NestNet, config=nest)
+  return functools.partial(eval(config.classname), config=nest)
 
 
 def create_model(name, config):

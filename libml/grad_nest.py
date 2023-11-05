@@ -1,26 +1,37 @@
 from models import nest_bricks
+from models import basic_nest_defs
 import jax
 import train
 import os
 from configs import imagenet_nest
 import functools
+
 class GradNesT:
     def __init__(self, model_name, config, checkpoint_dir:os.path, num_classes:int):
         self.config = config
-        self.num_layers_per_block = config.num_layers_per_block
-        self.num_blocks = len(self.num_layers_per_block)
-        self.state_dict = train.checkpoint.load_state_dict(checkpoint_dir)
-        self.variables = {
-            "params": self.state_dict["optimizer"]["target"],
-        }
-        self.variables.update(self.state_dict["model_state"])
-        dense_layer = nest_bricks.NesTDenseBlock.create_model(model_name, config)
-        self.nestDense = functools.partial(dense_layer, num_classes=num_classes)
-        aggregation_layer = nest_bricks.NesTAggregateBrick(model_name, config)
-        self.nestAggregate = functools.partial(aggregation_layer, num_classes=num_classes)
-        transformer_layer = nest_bricks.NesTTransformerBrick(model_name, config)
-        self.nestTransformers = functools.partial(transformer_layer, num_classes=num_classes)
 
+        state_dict = train.checkpoint.load_state_dict(checkpoint_dir)
+        variables = {
+            "params": state_dict["optimizer"]["target"],
+        }
+        variables.update(state_dict["model_state"])
+        self.variables = variables
+        config.classname = 'nest_bricks.NesTDenseBlock'
+        dense_layer = basic_nest_defs.create_model(model_name, config)
+        self.nestDense = functools.partial(dense_layer, num_classes=1000)
+        config.classname = 'nest_bricks.NesTAggregateBrick'
+        aggregation_layer = basic_nest_defs.create_model(model_name, config)
+        self.nestAggregate = functools.partial(aggregation_layer, num_classes=num_classes)
+        config.classname = 'nest_bricks.NesTTransformerBrick'
+        transformer_layer = basic_nest_defs.create_model(model_name, config)
+        self.nestTransformers = functools.partial(transformer_layer, num_classes=num_classes)
+        self.nestTransformers.variables = self.variables
+        self.num_layers_per_block = [3, 3, 3] #config.num_layers_per_block
+        self.num_blocks = len(self.num_layers_per_block)
+        #self.state_dict = train.checkpoint.load_state_dict(checkpoint_dir)
+        #self.variables = {
+        #    "params": self.state_dict["optimizer"]["target"],
+        #}
 
     def do_first_layer(self, inputs):
         x = self.nestTransformers(train=False).apply(self.variables, inputs, 0, mutable=False)

@@ -44,8 +44,11 @@ variables = {
     "params": state_dict["optimizer"]["target"],
 }
 variables.update(state_dict["model_state"])
-model_cls = GradNesT.create_model(imagenet_config.model_name, imagenet_config)
-model = functools.partial(model_cls, num_classes=1000)
+model = grad_nest.GradNesT(imagenet_config.model_name, imagenet_config,
+                           os.path.join(checkpoint_dir, os.path.basename(remote_checkpoint_dir)),
+                           num_classes=1000)
+#model_cls = GradNesT.create_model(imagenet_config.model_name, imagenet_config)
+#model = functools.partial(model_cls, num_classes=1000)
 
 
 import PIL
@@ -70,6 +73,9 @@ def _preprocess(image):
 #save data for gradCAT()
 
 input = _preprocess(img)
+maps, grads = model.calc_maps_and_grads(input)
+my_grad_cat = grad_cat.GradCat()
+traversal_path, grades = my_grad_cat.GradCat(maps, grads)
 
 cls, prob = predict(input)
 print(f'ImageNet class id: {cls[0]}, prob: {prob[0]}')
