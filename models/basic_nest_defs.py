@@ -1,8 +1,7 @@
 import functools
 import ml_collections
 import sys
-from models import nest_bricks
-
+from models import nest_modules
 MODELS = {}
 
 

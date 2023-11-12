@@ -34,9 +34,7 @@ class GradCat:
             assert len(curr_level_ftrs_maps) == len(curr_grads)
             for count in range(len(curr_grads)):
                 h1 = curr_level_ftrs_maps(count)*curr_grads(count)
-                h1_ = nn.avg_pool(h1,
-                window_shape=(curr_level_ftrs_maps(count).shape(0)//4, curr_level_ftrs_maps(count).shape(1)//2)
-                            )
+                h1_ = nn.avg_pool(h1, window_shape=(2, 2))
                 n_star = h1_.argmax()
                 grade = h1_.max()
                 traversal_path.append(n_star)

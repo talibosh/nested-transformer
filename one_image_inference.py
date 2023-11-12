@@ -21,7 +21,9 @@ from configs import cifar_nest
 from configs import imagenet_nest
 from jax import grad  # for gradCAT
 
-from models import conv_trials
+from models import nest_modules
+from libml import self_attention
+from models import basic_nest_defs
 
 # Hide any GPUs form TensorFlow. Otherwise TF might reserve memory and make
 # it unavailable to JAX.
@@ -58,7 +60,10 @@ img = PIL.Image.open("spoon.jpg")
 img
 #%%
 def predict(image):
-  logits = model(train=False).apply(variables, image, mutable=False)
+  #logits = model(train=False).apply(variables, image, mutable=False)
+
+  logits, state = model(train=False).apply(variables, image, mutable=['intermediates'])
+
   # Return predicted class and confidence.
   return logits.argmax(axis=-1), nn.softmax(logits, axis=-1).max(axis=-1)
 
@@ -71,13 +76,66 @@ def _preprocess(image):
 
 #save data for gradCAT()
 def _try_conv(inputs):
-    seed = jax.random.PRNGKey(0)
-    model = flax.linen.Conv(features=32, kernel_size=(3,3), padding="SAME", name="CONV1")
-    params = model.init(seed, inputs)
-    x = model.apply(params,inputs)
-    return x
+    from models import basic_nest_defs
+    config = imagenet_config
+    config.classname = 'nest_modules.PatchEmbaddingBlock'
+    model_cls_patch_embed = basic_nest_defs.create_model(imagenet_config.model_name, config)
+    model_patch_embed = functools.partial(model_cls_patch_embed, num_classes=1000)
+    x = model_patch_embed(train=False).apply(variables, inputs, mutable=False)
+    config.classname = 'nest_modules.BlockImages'
+    model_cls_block_images = basic_nest_defs.create_model(imagenet_config.model_name, config)
+    model_block_images = functools.partial(model_cls_block_images, num_classes=1000)
+    x = model_block_images(train=False).apply(variables, x, mutable=False)
+    config.classname = 'nest_modules.PosEmbedAndEncodeBlock'
+    model_cls_posembed_encode0 = basic_nest_defs.create_model(imagenet_config.model_name, config)
+    model_posembed_encode0 = functools.partial(model_cls_posembed_encode0, num_classes=1000)
+    config.classname = 'nest_modules.AggregateBlock'
+    model_cls_aggregate0 = basic_nest_defs.create_model(imagenet_config.model_name, config)
+    model_aggregate0 = functools.partial(model_cls_aggregate0, num_classes=1000)
+
+    for level in range(0,2):
+        x = model_posembed_encode0(train=False, level=level).apply(variables, x, mutable=False)
+        x = model_aggregate0(train=False, level=level).apply(variables, x, mutable=False)
+    level = level+1
+    x = model_posembed_encode0(train=False, level=level).apply(variables, x, mutable=False)
+    config.classname = 'nest_modules.DenseBlock'
+    model_cls_dense = basic_nest_defs.create_model(imagenet_config.model_name, config)
+    model_dense = functools.partial(model_cls_dense, num_classes=1000)
+    logits = model_dense(train=False, level=level).apply(variables, x, mutable=False)
+    return logits.argmax(axis=-1), nn.softmax(logits, axis=-1).max(axis=-1)
+
+def InsForGrad(x):
+    config=imagenet_config
+    config.classname = 'nest_modules.NesTB'
+    model_cls_B= basic_nest_defs.create_model(imagenet_config.model_name, config)
+    #model_B = functools.partial(model_cls_B, num_classes=1000)
+    prob, state = model_cls_B(train=False, num_classes=1000).apply(variables, x, mutable='intermediates')
+    #prob = nn.softmax(logits, axis=-1).max(axis=-1)
+    return prob
+
+def try_grad(inputs):
+    config = imagenet_config
+    config.classname = 'nest_modules.NesTA'
+    model_cls_A = basic_nest_defs.create_model(imagenet_config.model_name, config)
+    #model_A = functools.partial(model_cls_A, num_classes=1000)
+    x, state = model_cls_A(train=False, num_classes=1000).apply(variables, inputs, mutable='intermediates')
+    grad_func = jax.grad(InsForGrad)
+    grads = grad_func(x)
+    feature_map = state['intermediates']['last_layer']
+    h1 = -1 * x * grads
+    h11=jnp.transpose(h1,(0,2,3,1))
+    h11_ = nn.avg_pool(h11, window_shape=(98, 256),strides=(98,256))
+    return grads
+    #config.classname = 'nest_modules.nesTB'
+    #model_cls_B= basic_nest_defs.create_model(imagenet_config.model_name, config)
+    #model_B = functools.partial(model_cls_B, num_classes=1000)
+    #x = model_B(train=False).apply(variables, x, mutable='intermediates')
+
+
+
 
 input = _preprocess(img)
 x=_try_conv(input)
+my_grads = try_grad(input)
 cls, prob = predict(input)
 print(f'ImageNet class id: {cls[0]}, prob: {prob[0]}')
