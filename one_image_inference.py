@@ -4,7 +4,8 @@ sys.path.append('./nested-transformer')
 import os
 import time
 import flax
-from flax import nn
+import flax.linen as nn
+#from flax import nn
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -55,7 +56,7 @@ model = functools.partial(model_cls, num_classes=1000)
 import PIL
 
 #img = PIL.Image.open('dog.jpg')
-img = PIL.Image.open("spoon.jpg")
+img = PIL.Image.open("n01494475_hammerhead.jpg")
 #img = PIL.Image.open('13-0014.jpg')
 img
 #%%
@@ -121,6 +122,7 @@ def try_grad(inputs):
     x, state = model_cls_A(train=False, num_classes=1000).apply(variables, inputs, mutable='intermediates')
     grad_func = jax.grad(InsForGrad)
     grads = grad_func(x)
+    #norm_fn = functools.partial(nn.LayerNorm, epsilon=1e-6, dtype=dtype)
     feature_map = state['intermediates']['last_layer']
     h1 = -1 * x * grads
     h11=jnp.transpose(h1,(0,2,3,1))
@@ -135,7 +137,7 @@ def try_grad(inputs):
 
 
 input = _preprocess(img)
-x=_try_conv(input)
-my_grads = try_grad(input)
+#x=_try_conv(input)
+#my_grads = try_grad(input)
 cls, prob = predict(input)
 print(f'ImageNet class id: {cls[0]}, prob: {prob[0]}')

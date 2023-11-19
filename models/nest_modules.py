@@ -317,14 +317,14 @@ class AggregateBlock(nn.Module):
                 output_dim = None
 
             name = 'ConvPool_' + str(self.level)
-            x = self_attention.ConvPool(name=name,
+            x = self_attention.ConvPool_no_unblock(name=name,
                 grid_size=(grid_size, grid_size),
                 patch_size=(config.patch_size, config.patch_size),
                 conv_fn=conv_fn,
                 dtype=self.dtype,
                 output_dim=output_dim)(
                 inputs)
-            self.sow('intermediates', 'aggregaed_features_maps', x)
+            self.sow('intermediates', 'features_maps', x)
 
         return x
 
@@ -359,5 +359,6 @@ class DenseBlock(nn.Module):
         x_pool = jnp.mean(x, axis=(1, 2))
         out = dense_fn(self.num_classes)(x_pool)
         logits = flax.linen.softmax(out)
+        #res = logits.max()
         res = logits.max()
         return res

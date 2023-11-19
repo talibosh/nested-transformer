@@ -261,7 +261,29 @@ class PatchEmbedding(nn.Module):
         strides=self.patch_size)(
             inputs)
     return out
+#####tali adds####
+class ConvPool_no_unblock(nn.Module):
+  """Downsampling layer with conv_pool."""
+  patch_size: Tuple[int, int]
+  grid_size: Tuple[int, int]
+  output_dim: Optional[int] = None
+  conv_fn: Any = nn.Conv
+  dtype: Any = jnp.float32
 
+  @nn.compact
+  def __call__(self, x):
+    #x = attn_utils.unblock_images(
+    #    x, grid_size=self.grid_size, patch_size=self.patch_size)
+    if self.output_dim is None:
+      output_dim = x.shape[-1]
+    else:
+      output_dim = self.output_dim
+    x = self.conv_fn(output_dim, kernel_size=(3, 3))(x)
+    x = nn.LayerNorm(dtype=self.dtype, epsilon=1e-6)(x)
+    x = nn.max_pool(x, window_shape=(3, 3), strides=(2, 2), padding="SAME")
+    x = attn_utils.block_images(x, patch_size=self.patch_size)
+    return x
+######tali adds#####
 
 class ConvPool(nn.Module):
   """Downsampling layer with conv_pool."""
