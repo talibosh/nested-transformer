@@ -42,6 +42,7 @@ from models import nest_net
 from models import resnet_v1
 from models import wide_resnet
 
+import jaxlib
 
 @flax.struct.dataclass
 class TrainState:
@@ -102,6 +103,8 @@ def create_train_state(config: ml_collections.ConfigDict, rng: np.ndarray,
                                             (p_nowd, p_nowd_opt)).create(params)
     else:
       optimizer = flax.optim.Adam(
+          weight_decay=config.weight_decay).create(params)
+    optimizer = flax.optim.Adam(
           weight_decay=config.weight_decay).create(params)
   elif config.optim == "sgd":
     optimizer = flax.optim.Momentum(
@@ -364,7 +367,21 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
   # Set up checkpointing of the model and the input pipeline.
   checkpoint_dir = os.path.join(workdir, "checkpoints")
   ckpt = checkpoint.MultihostCheckpoint(checkpoint_dir, max_to_keep=2)
-  state = ckpt.restore_or_initialize(state)
+
+  ###Tali update- flax.serialization code version doesn't support jax.Array (but an older type)####
+  ### This is a bypass - convert dict leaves from jax.Array to np.array to enable state save
+  #return flax.serialization.msgpack_serialize(state_dict, in_place=True)
+  checkpoint1 = ckpt.get_latest_checkpoint_to_restore_from()
+  if checkpoint1 is not None:
+      state = ckpt.restore(state, checkpoint1)
+  logging.info("Storing initial version.")
+  state_dict = flax.serialization.to_state_dict(state)
+  pytree = utils._np_convert_in_place(state_dict)
+  ckpt.save(pytree)
+  ###########
+  #state = ckpt.restore_or_initialize(state)
+
+
   initial_step = int(state.step) + 1
 
   disable_l2_wd = config.optim == "adamw"
