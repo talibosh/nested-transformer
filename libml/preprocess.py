@@ -103,7 +103,7 @@ def train_preprocess(features: Dict[str, tf.Tensor],
   image = decode_and_random_resized_crop(
       image, rng_crop, resize_size=input_size)
   image = tf.image.stateless_random_flip_left_right(image, rng_flip)
-  return {"image": image, "label": features["label"]}
+  return {"image": image, "label": features["label"], "image/filename": features["image/filename"] }
 
 
 def train_cifar_preprocess(features: Dict[str, tf.Tensor]):
