@@ -67,7 +67,6 @@ def preprocess_with_per_batch_rng(ds: tf.data.Dataset,
     if isinstance(processed, dict) and "rng" in processed:
       del processed["rng"]
     return processed
-
   return ds.enumerate().map(
       _fn, num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
@@ -185,6 +184,45 @@ def get_dataset_fns(
       preprocess_fn = train_preprocess
       eval_preprocess_fn = functools.partial(
           eval_preprocess, mean=None, std=None)
+  elif config.dataset.startswith("stanford_dogs"):
+      dataset_builder = tfds.builder("stanford_dogs")
+      train_split = deterministic_data.get_read_instruction_for_host(
+          "train", dataset_builder.info.splits["train"].num_examples)
+      test_split_name = "test"
+
+      # If there is resource error during preparation, checkout
+      # https://github.com/tensorflow/datasets/issues/1441#issuecomment-581660890
+      dataset_builder.download_and_prepare()
+
+      # Default image size is 224, one can use a different one by setting
+      # config.input_size. Note that some augmentation also requires specifying
+      # input_size through respective config.
+      input_size = config.get("input_size", 224)
+      # Create augmentaton fn.
+      if use_custom_process:
+          # When using custom augmentation, we use mean/std normalization.
+          logging.info("Configure augmentation type %s", config.augment.type)
+          mean = tf.constant(
+              preprocess.IMAGENET_DEFAULT_MEAN, dtype=tf.float32, shape=[1, 1, 3])
+          std = tf.constant(
+              preprocess.IMAGENET_DEFAULT_STD, dtype=tf.float32, shape=[1, 1, 3])
+          basic_preprocess_fn = functools.partial(
+              preprocess.train_preprocess, input_size=input_size)
+          preprocess_fn = preprocess.get_augment_preprocess(
+              config.get(AUGMENT),
+              colorjitter_params=config.get(COLORJITTER),
+              randerasing_params=config.get(RANDOM_ERASING),
+              mean=mean,
+              std=std,
+              basic_process=basic_preprocess_fn)
+          eval_preprocess_fn = functools.partial(
+              preprocess.eval_preprocess, mean=mean, std=std, input_size=input_size)
+      else:
+          # Standard imagenet(stanford_dogs is a subset) preprocess with 0-1 normalization
+          preprocess_fn = functools.partial(
+              preprocess.train_preprocess, input_size=input_size)
+          eval_preprocess_fn = functools.partial(
+              preprocess.eval_preprocess, input_size=input_size)
   else:
     raise ValueError(f"Dataset {config.dataset} does not exist.")
 
@@ -267,7 +305,7 @@ def create_datasets(
       cache=jax.process_count() > 1,
       batch_dims=[jax.local_device_count(), config.per_device_batch_size],
       num_epochs=1,
-      shuffle=False,
+      shuffle= False,
       pad_up_to_batches=eval_num_batches,
   )
   return dataset_builder.info, train_ds, eval_ds
