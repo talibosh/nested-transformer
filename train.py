@@ -415,7 +415,12 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
       is_last_step = step == num_train_steps
 
       with jax.profiler.StepTraceAnnotation("train", step_num=step):
-        batch = jax.tree_map(np.asarray, next(train_iter))
+        try:
+            batch1 = jax.tree_map(np.asarray, next(train_iter))
+        except:
+            continue
+        batch = {"image": batch1["image"], "label": batch1["label"]}
+        #print(batch1["image/filename"])
         drop_out_rng_step = jax.random.fold_in(drop_out_rng, step)
         drop_out_rng_step_all = jax.random.split(drop_out_rng_step,
                                                  jax.local_device_count())
@@ -439,6 +444,15 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
 
       if step % config.checkpoint_every_steps == 0 or is_last_step:
         with report_progress.timed("checkpoint"):
-          ckpt.save(flax_utils.unreplicate(state))
+         ###Tali update- flax.serialization code version doesn't support jax.Array (but an older type)####
+            ### This is a bypass - convert dict leaves from jax.Array to np.array to enable state save
+            # return flax.serialization.msgpack_serialize(state_dict, in_place=True)
+            ###########
+          unrep_state = flax_utils.unreplicate(state)
+          state_dict = flax.serialization.to_state_dict(unrep_state)
+          pytree = utils._np_convert_in_place(state_dict)
+          ckpt.save(pytree)
+
+          #ckpt.save(flax_utils.unreplicate(state))
 
   logging.info("Finishing training at step %d", num_train_steps)
