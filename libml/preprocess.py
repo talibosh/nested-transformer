@@ -71,7 +71,14 @@ def central_crop(image: tf.Tensor, size: int) -> tf.Tensor:
   image = tf.image.crop_to_bounding_box(image, top, left, h, w)
   return image
 
-
+def decode_crop_bounding_box_and_resize(image: tf.Tensor, resize_size: int,
+                                        offset_h: int, offset_w: int,
+                                        bb_h: int, bb_w: int) -> tf.Tensor:
+  image = tf.image.decode_and_crop_jpeg(image, [offset_h, offset_w, bb_h, bb_w], channels=3)
+  #image = tf.image.crop_to_bounding_box(image, offset_h, offset_w, bb_h, bb_w)
+  image = tf.cast(image, tf.float32) / 255.0
+  image = tf.image.resize(image, (resize_size, resize_size))
+  return image
 def decode_and_random_resized_crop(image: tf.Tensor, rng,
                                    resize_size: int) -> tf.Tensor:
   """Decodes the images and extracts a random crop."""
@@ -90,11 +97,35 @@ def decode_and_random_resized_crop(image: tf.Tensor, rng,
   image = tf.image.resize(image, (resize_size, resize_size))
   return image
 
+def train_preprocess_stanford_dogs(features: Dict[str, tf.Tensor],
+                     input_size: int = 224) -> Dict[str, tf.Tensor]:
+  """Processes a single example for training."""
+  image = features["image"]
+  shape = tf.io.extract_jpeg_shape(image) #get image shape (height, width)
+  bndbox = features["objects"]["bbox"]
+  xmin = int(bndbox[0,0]*float(shape[0])) #min row
+  ymin = int(bndbox[0,1]*float(shape[1])) #min col
+  xmax = int(bndbox[0,2]*float(shape[0])) #max row
+  ymax = int(bndbox[0,3]*float(shape[1])) #max col
+  image=decode_crop_bounding_box_and_resize(image, input_size,
+  xmin, ymin, xmax-xmin+1, ymax-ymin+1)
+
+  # This PRNGKey is unique to this example. We can use it with the stateless
+  # random ops in TF.
+  rng = features.pop("rng")
+  rng, rng_crop, rng_flip = tf.unstack(
+      tf.random.experimental.stateless_split(rng, 3))
+  image = tf.image.stateless_random_flip_left_right(image, rng_flip)
+  return {"image": image, "label": features["label"],
+          "image/filename": features["image/filename"], "bb":features["objects"]["bbox"], "b_b":[xmin, ymin, xmax, ymax] }
+
 
 def train_preprocess(features: Dict[str, tf.Tensor],
                      input_size: int = 224) -> Dict[str, tf.Tensor]:
   """Processes a single example for training."""
   image = features["image"]
+
+  #image = image[ymin:ymax, xmin:xmax]
   # This PRNGKey is unique to this example. We can use it with the stateless
   # random ops in TF.
   rng = features.pop("rng")

@@ -207,7 +207,7 @@ def get_dataset_fns(
           std = tf.constant(
               preprocess.IMAGENET_DEFAULT_STD, dtype=tf.float32, shape=[1, 1, 3])
           basic_preprocess_fn = functools.partial(
-              preprocess.train_preprocess, input_size=input_size)
+              preprocess.train_preprocess_stanford_dogs, input_size=input_size)
           preprocess_fn = preprocess.get_augment_preprocess(
               config.get(AUGMENT),
               colorjitter_params=config.get(COLORJITTER),
@@ -220,7 +220,7 @@ def get_dataset_fns(
       else:
           # Standard imagenet(stanford_dogs is a subset) preprocess with 0-1 normalization
           preprocess_fn = functools.partial(
-              preprocess.train_preprocess, input_size=input_size)
+              preprocess.train_preprocess_stanford_dogs, input_size=input_size)
           eval_preprocess_fn = functools.partial(
               preprocess.eval_preprocess, input_size=input_size)
   else:
