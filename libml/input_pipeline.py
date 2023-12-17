@@ -184,7 +184,7 @@ def get_dataset_fns(
       preprocess_fn = train_preprocess
       eval_preprocess_fn = functools.partial(
           eval_preprocess, mean=None, std=None)
-  elif config.dataset.startswith("stanford_dogs"):
+  elif config.dataset.startswith("stanford_dogs") or config.dataset.startswith("head_shape_stanford_dogs"):
       dataset_builder = tfds.builder("stanford_dogs")
       train_split = deterministic_data.get_read_instruction_for_host(
           "train", dataset_builder.info.splits["train"].num_examples)
