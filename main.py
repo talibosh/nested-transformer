@@ -22,7 +22,7 @@ import jax
 from ml_collections import config_flags
 import os
 import tensorflow as tf
-
+tf.config.experimental.set_visible_devices([], "GPU")
 import train
 
 
