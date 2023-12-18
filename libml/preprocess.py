@@ -22,6 +22,8 @@ import tensorflow as tf
 
 from augment import augment_utils
 
+import helpers_for_specific_data.dog_head_shapes_helpers as helpers
+
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
 CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
@@ -109,15 +111,17 @@ def train_preprocess_stanford_dogs(features: Dict[str, tf.Tensor],
   ymax = int(bndbox[0,3]*float(shape[1])) #max col
   image=decode_crop_bounding_box_and_resize(image, input_size,
   xmin, ymin, xmax-xmin+1, ymax-ymin+1)
-
   # This PRNGKey is unique to this example. We can use it with the stateless
   # random ops in TF.
   rng = features.pop("rng")
   rng, rng_crop, rng_flip = tf.unstack(
       tf.random.experimental.stateless_split(rng, 3))
+  #image = decode_and_random_resized_crop(
+  #  image, rng_crop, resize_size=input_size)
   image = tf.image.stateless_random_flip_left_right(image, rng_flip)
-  return {"image": image, "label": features["label"],
-          "image/filename": features["image/filename"], "bb":features["objects"]["bbox"], "b_b":[xmin, ymin, xmax, ymax] }
+
+  return {"image": image, "label": features["label"]}
+          #"image/filename": features["image/filename"]}#, "bb":features["objects"]["bbox"]}#, "b_b":[xmin, ymin, xmax, ymax] }
 
 
 def train_preprocess(features: Dict[str, tf.Tensor],
