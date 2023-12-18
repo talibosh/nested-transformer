@@ -35,13 +35,14 @@ import ml_collections
 import numpy as np
 import tensorflow as tf
 
+import helpers_for_specific_data.dog_head_shapes_helpers as helpers
 from libml import input_pipeline
 from libml import losses
 from libml import utils
 from models import nest_net
 from models import resnet_v1
 from models import wide_resnet
-
+tf.config.experimental.set_visible_devices([], "GPU")
 import jaxlib
 
 @flax.struct.dataclass
@@ -74,6 +75,7 @@ def create_train_state(config: ml_collections.ConfigDict, rng: np.ndarray,
     raise ValueError(f"Model {config.model_name} not supported.")
   model = functools.partial(model_cls, num_classes=num_classes)
   variables = model(train=False).init(rng, jnp.ones(input_shape))
+  #variables = model(train=True).init(rng, jnp.ones(input_shape))
   model_state = dict(variables)
   params = model_state.pop("params")
   parameter_overview.log_parameter_overview(params)
@@ -162,6 +164,7 @@ def train_step(
 
   step = state.step + 1
   lr = learning_rate_fn(step)
+
   # Convert one-hot labels to single values if appliable.
   u_labels = (
       jnp.argmax(batch["label"], 1)
@@ -280,6 +283,7 @@ def evaluate(model: nn.Module,
   eval_metrics = None
   with StepTraceContextHelper("eval", 0) as trace_context:
     for step, batch in enumerate(eval_ds):  # pytype: disable=wrong-arg-types
+      batch['label'] = helpers.update_label(batch['label'])
       batch = jax.tree_map(np.asarray, batch)
       metrics_update = flax_utils.unreplicate(eval_step(model, state, batch))
       eval_metrics = (
@@ -299,6 +303,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
     workdir: Working directory for checkpoints and TF summaries. If this
       contains checkpoint training will be resumed from the latest checkpoint.
   """
+
   tf.io.gfile.makedirs(workdir)
   rng = jax.random.PRNGKey(config.seed)
 
@@ -307,12 +312,40 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
   data_rng = jax.random.fold_in(data_rng, jax.process_index())
   ds_info, train_ds, eval_ds = input_pipeline.create_datasets(config, data_rng)
   train_iter = iter(train_ds)  # pytype: disable=wrong-arg-types
+  #update ds if needed
+  train_sz = train_ds.cardinality().numpy()
+  num_classes = ds_info.features["label"].num_classes
+  if (config.dataset.startswith("head_shape_stanford_dogs")):
+      #import tensorflow_datasets as tfds
+      #df = tfds.as_dataframe(train_ds.take(3), ds_info
 
-  # Learning rate schedule.
+      num_classes = 2
+      train_ds1 = train_ds.filter(helpers.predicate)
+      train_iter1 = iter(train_ds1)
+      car1 = 0.17*train_ds.cardinality().numpy() #num of allowed labels is 18/120 = 0.15
+                                                # this is the expected number of elems in train_ds1 add a little bit
+                                                # to be on the safe side
+      train_sz=0
+      for j in range(int(car1)):
+          try:
+              next(train_iter1)
+              train_sz = train_sz + 1
+          except:
+              continue
+      eval_ds = eval_ds.filter(helpers.predicate)
+
+      #df = tfds.as_dataframe(eval_ds1.take(3), ds_info)
+      eval_sz = eval_ds.reduce(0, lambda x,_:x+1)
+
+
+      train_iter = iter(train_ds1)
+
+
+      # Learning rate schedule.
   global_batch_size = config.per_device_batch_size * jax.device_count()
   num_train_steps = config.num_train_steps
   if num_train_steps == -1:
-    num_train_steps = train_ds.cardinality().numpy()
+    num_train_steps = train_sz #train_ds.cardinality().numpy()
     assert num_train_steps > 0
 
   steps_per_epoch = num_train_steps // config.num_epochs
@@ -345,7 +378,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
       config,
       model_rng,
       input_shape=train_ds.element_spec["image"].shape[1:],
-      num_classes=ds_info.features["label"].num_classes)
+      num_classes= num_classes) #ds_info.features["label"].num_classes)
 
   if config.get("init_checkpoint"):
     state = utils.load_and_custom_init_checkpoint(
@@ -419,7 +452,9 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
             batch1 = jax.tree_map(np.asarray, next(train_iter))
         except:
             continue
-        batch = {"image": batch1["image"], "label": batch1["label"]}
+
+
+        batch = {"image": batch1["image"], "label":helpers.update_label(batch1["label"])}
         #print(batch1["image/filename"])
         drop_out_rng_step = jax.random.fold_in(drop_out_rng, step)
         drop_out_rng_step_all = jax.random.split(drop_out_rng_step,
@@ -438,9 +473,10 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
         train_metrics = None
 
       if step % eval_every_steps == 0 or is_last_step:
-        with report_progress.timed("eval"):
-          eval_metrics = evaluate(model, state, eval_ds, config.num_eval_steps)
-        writer.write_scalars(step // summary_step_div, eval_metrics.compute())
+          print("step is:" + str(step))
+          with report_progress.timed("eval"):
+              eval_metrics = evaluate(model, state, eval_ds, config.num_eval_steps)
+              writer.write_scalars(step // summary_step_div, eval_metrics.compute())
 
       if step % config.checkpoint_every_steps == 0 or is_last_step:
         with report_progress.timed("checkpoint"):
