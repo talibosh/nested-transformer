@@ -282,8 +282,7 @@ def evaluate(model: nn.Module,
   logging.info("Starting evaluation.")
   eval_metrics = None
   with StepTraceContextHelper("eval", 0) as trace_context:
-    for step, batch in enumerate(eval_ds):  # pytype: disable=wrong-arg-types
-      batch['label'] = helpers.update_label(batch['label'])
+    for step, batch in enumerate(eval_ds):  # pytype: disable=wrong-arg-type
       batch = jax.tree_map(np.asarray, batch)
       metrics_update = flax_utils.unreplicate(eval_step(model, state, batch))
       eval_metrics = (
@@ -320,7 +319,10 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
       #df = tfds.as_dataframe(train_ds.take(3), ds_info
 
       num_classes = 2
+
       train_ds1 = train_ds.filter(helpers.predicate)
+      train_ds1 = train_ds1.map(helpers.update_label)
+
       train_iter1 = iter(train_ds1)
       car1 = 0.17*train_ds.cardinality().numpy() #num of allowed labels is 18/120 = 0.15
                                                 # this is the expected number of elems in train_ds1 add a little bit
@@ -333,6 +335,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
           except:
               continue
       eval_ds = eval_ds.filter(helpers.predicate)
+      eval_ds = eval_ds.map(helpers.update_label)
 
       #df = tfds.as_dataframe(eval_ds1.take(3), ds_info)
       eval_sz = eval_ds.reduce(0, lambda x,_:x+1)
@@ -449,12 +452,12 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
 
       with jax.profiler.StepTraceAnnotation("train", step_num=step):
         try:
-            batch1 = jax.tree_map(np.asarray, next(train_iter))
+            batch = jax.tree_map(np.asarray, next(train_iter))
         except:
             continue
 
 
-        batch = {"image": batch1["image"], "label":helpers.update_label(batch1["label"])}
+        #batch = {"image": batch1["image"], "label":helpers.update_label(batch1["label"])}
         #print(batch1["image/filename"])
         drop_out_rng_step = jax.random.fold_in(drop_out_rng, step)
         drop_out_rng_step_all = jax.random.split(drop_out_rng_step,
