@@ -2,7 +2,7 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$" />
-    <orderEntry type="jdk" jdkName="Remote Python 3.9.0 (sftp://tali@132.75.250.245:22/home/tali/.conda/envs/nstWork/bin/python3.9)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Remote Python 3.11.5 (sftp://tali@132.75.250.245:22/home/tali/.conda/envs/nst_3_11_cuda12/bin/python3.11)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">

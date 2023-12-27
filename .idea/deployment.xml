@@ -5,18 +5,18 @@
       <paths name="tali@132.75.250.245:22 password">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/tali/mappingPjt/nst" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/tali/mappingPjt/nst12" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
       <paths name="tali@132.75.250.245:22 password (2)">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/tali/mappingPjt/nst" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/tali/mappingPjt/nst12" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="tali@132.75.250.245:22 password (3)">
+      <paths name="tali@132.75.250.245:22 password (5)">
         <serverdata>
           <mappings>
             <mapping deploy="/home/tali/mappingPjt/nst" local="$PROJECT_DIR$" />

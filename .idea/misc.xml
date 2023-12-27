@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.9.0 (sftp://tali@132.75.250.245:22/home/tali/.conda/envs/nstWork/bin/python3.9)" project-jdk-type="Python SDK" />
+  <component name="Black">
+    <option name="sdkName" value="Remote Python 3.11.5 (sftp://tali@132.75.250.245:22/home/tali/.conda/envs/nst_3_11/bin/python3)" />
+  </component>
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 3.11.5 (sftp://tali@132.75.250.245:22/home/tali/.conda/envs/nst_3_11_cuda12/bin/python3.11)" project-jdk-type="Python SDK" />
 </project>
