@@ -1,9 +1,10 @@
 
 from PIL import Image
 import os, sys
+import numpy as np
 
 
-path = '/home/tali/mappingPjt/nst/imgs/'
+path = '/home/tali/mappingPjt/nst12/imgs/'
 dirs = os.listdir( path )
 
 def resize():
@@ -39,31 +40,80 @@ def run_rec_on_dir(square_size):
 from matplotlib import image
 from matplotlib import pyplot as plt
 
-def plot_grid(fname):
-  data = image.imread(fname)
+def plot_grid(fname: str, out_path: str = [], show: bool = False, grades_level3=[], grades_level2=[]):
+  im = Image.open(fname)
+  data = im.resize((224,224))
+
+  #data = image.imread(fname)
 
   # to draw a line from (200,300) to (500,100)
+  width, height = data.size[0], data.size[1]
 
-  x2 = [0, 223]
-  y2 = [55, 55]
-  plt.plot(x2, y2, color="blue", linewidth=3)
-  x3 = [55, 55]
-  y3 = [0, 223]
-  plt.plot(x3, y3, color="blue", linewidth=3)
-  x4 = [0, 223]
-  y4 = [167, 167]
-  plt.plot(x4, y4, color="blue", linewidth=3)
-  x5 = [167, 167]
-  y5 = [0, 223]
-  plt.plot(x5, y5, color="blue", linewidth=3)
-  x0 = [111, 111]
-  y0 = [0, 223]
-  plt.plot(x0, y0, color="magenta", linewidth=3)
-  x1 = [0, 223]
-  y1 = [111, 111]
-  plt.plot(x1, y1, color="magenta", linewidth=3)
+  step_w = int(width/4)
+  step_h = int(height/4)
+
+  #draw vertical lines
+  h_pos=[0, height-1]
+  for c in range(step_w, width, step_w):
+    w_pos=[c-1, c-1]
+    if c == width/2:
+      color = 'magenta'
+    else:
+      color = 'blue'
+    plt.plot(w_pos, h_pos, color=color, linewidth=3)
+
+
+  #draw horiz lines
+  w_pos=[0, width-1]
+  for r in range(step_h, height, step_h):
+    h_pos=[r-1, r-1]
+    if r == height/2:
+      color = 'magenta'
+    else:
+      color = 'blue'
+    plt.plot(w_pos, h_pos, color=color, linewidth=3)
+
+  idx=0
+  g3 = np.reshape(grades_level3,(1,4))
+  max_idx = np.argmax(g3)
+  if grades_level3 is not []:
+    for h in range(1,4,2):
+      for w in range(1,4,2):
+        my_grade = f'{g3[0][idx]:.3f}'
+        plt.text(w*step_w-1, h*step_h-1, my_grade, fontsize='large', weight="bold")
+        idx = idx+1
+
+  idx1 = 0
+  if grades_level2 is not []:
+    g2 = np.reshape(grades_level2,(4,4))
+    for h in range(0, 4):
+      if h < 2:
+        ver_half = 0
+      else:
+        ver_half = 2
+      for w in range(0, 4):
+        if w < 2:
+          hor_half = 0
+        else:
+          hor_half = 1
+        qtr = ver_half+hor_half
+        my_grade= f'{g2[h][w]:.3f}'
+        color='black'
+        fontsize='medium'
+        if qtr == max_idx:
+          color = 'red'
+          fontsize = 'xx-large'
+        plt.text(int(step_w/2) + w * step_w - 1, int(step_h/2)+h * step_h - 1,my_grade,
+                 fontsize=fontsize, color=color)
+        idx1 = idx1 + 1
   plt.imshow(data)
-  plt.show()
+  if out_path is not []:
+    plt.savefig(out_path)
 
-fname = '/home/tali/mappingPjt/nst/imgs/n07711569_mashed_potato resized.jpg'
-plot_grid(fname)
+  if show:
+    plt.show()
+
+  plt.close()
+
+#fname = '/home/tali/mappingPjt/nst12/imgs/n02100877_7560 resized.jpg'
+#plot_grid(fname, [10,20,30,40], [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])
