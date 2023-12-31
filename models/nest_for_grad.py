@@ -6,6 +6,10 @@ from absl import logging
 import os
 import numpy as np
 import tensorflow as tf
+tf.config.experimental.set_visible_devices([], "GPU")
+
+
+
 from configs import imagenet_nest
 import train
 from models import basic_nest_defs
@@ -14,6 +18,9 @@ from libml import attn_utils
 import jax.numpy as jnp
 import math
 
+
+from configs import dog_breeds
+
 tf.config.experimental.set_visible_devices([], "GPU")
 logging.set_verbosity(logging.INFO)
 
@@ -21,16 +28,22 @@ print("JAX devices:\n" + "\n".join([repr(d) for d in jax.devices()]))
 print('Current folder content', os.listdir())
 
 
-#checkpoint_dir = "./nested-transformer/checkpoints/"
-checkpoint_dir = "../checkpoints/"
-remote_checkpoint_dir = "gs://gresearch/nest-checkpoints/nest-b_imagenet"
+#checkpoint_dir = "../checkpoints/"
+#remote_checkpoint_dir = "gs://gresearch/nest-checkpoints/nest-b_imagenet"
+
+checkpoint_dir = "checkpoints/nest_dogs/checkpoints-0/"
 print('List checkpoints: ')
 
 # Use checkpoint of host 0.
-imagenet_config = imagenet_nest.get_config()
+#imagenet_config = imagenet_nest.get_config()
+imagenet_config = dog_breeds.get_config()
 
-state_dict = train.checkpoint.load_state_dict(
-    os.path.join(checkpoint_dir, os.path.basename(remote_checkpoint_dir)))
+
+#state_dict = train.checkpoint.load_state_dict(
+#    os.path.join(checkpoint_dir, os.path.basename(remote_checkpoint_dir)))
+
+state_dict = train.checkpoint.load_state_dict(checkpoint_dir)
+
 variables = {
     "params": state_dict["optimizer"]["target"],
 }
@@ -38,17 +51,17 @@ config = imagenet_config
 variables.update(state_dict["model_state"])
 config.classname = 'nest_modules.PosEmbedAndEncodeBlock'
 model_cls_posembed_encode0 = basic_nest_defs.create_model(imagenet_config.model_name, config)
-model_posembed_encode0 = functools.partial(model_cls_posembed_encode0, num_classes=1000)
+model_posembed_encode0 = functools.partial(model_cls_posembed_encode0, num_classes=2)
 config.classname = 'nest_modules.AggregateBlock'
 model_cls_aggregate0 = basic_nest_defs.create_model(imagenet_config.model_name, config)
-model_aggregate0 = functools.partial(model_cls_aggregate0, num_classes=1000)
+model_aggregate0 = functools.partial(model_cls_aggregate0, num_classes=2)
 MAX_LEVEL = 3
 
 import PIL
 
-img = PIL.Image.open("../imgs/n07871810_meat_loaf.jpg")
-
-
+#img = PIL.Image.open("../imgs/n02100877_7560.jpg")#irish setter
+#img = PIL.Image.open("../imgs/n02088094_60.jpg")#afghan hound
+#img = PIL.Image.open("../imgs/n02110958_8627.jpg")#pug
 
 ############################################3
 def do_bef_grad_level_transformers_3(inputs):
@@ -77,7 +90,7 @@ def do_post_grad_level_3(inputs):
     x=inputs
     config.classname = 'nest_modules.DenseBlock'
     model_cls_dense = basic_nest_defs.create_model(imagenet_config.model_name, config)
-    model_dense = functools.partial(model_cls_dense, num_classes=1000)
+    model_dense = functools.partial(model_cls_dense, num_classes=2)
     prob = model_dense(train=False, level=2).apply(variables, x, mutable=False)
     return prob
 
@@ -102,7 +115,7 @@ def do_post_grad_level_2(inputs):
     x, state = model_posembed_encode0(train=False, level=2).apply(variables, x, mutable='intermediates')
     config.classname = 'nest_modules.DenseBlock'
     model_cls_dense = basic_nest_defs.create_model(imagenet_config.model_name, config)
-    model_dense = functools.partial(model_cls_dense, num_classes=1000)
+    model_dense = functools.partial(model_cls_dense, num_classes=2)
     prob = model_dense(train=False, level=2).apply(variables, x, mutable=False)
     return prob
 
@@ -129,7 +142,7 @@ def do_post_grad_level_1(inputs):
     x, state = model_posembed_encode0(train=False, level=2).apply(variables, x, mutable='intermediates')
     config.classname = 'nest_modules.DenseBlock'
     model_cls_dense = basic_nest_defs.create_model(imagenet_config.model_name, config)
-    model_dense = functools.partial(model_cls_dense, num_classes=1000)
+    model_dense = functools.partial(model_cls_dense, num_classes=2)
     prob = model_dense(train=False, level=2).apply(variables, x, mutable=False)
     return prob
 def calc_maps_and_grads_part__(inputs):
@@ -144,15 +157,14 @@ def calc_maps_and_grads_part__(inputs):
     grads1 = grad_func1(x)
     return grads3, grads2, grads1, state3, state2, state1,agg_state3, agg_state2, agg_state1
 
-def calc_maps_and_grads__(image):
-    inputs = _preprocess(image)
+def calc_maps_and_grads__(inputs):
     config.classname = 'nest_modules.PatchEmbaddingBlock'
     model_cls_patch_embed = basic_nest_defs.create_model(imagenet_config.model_name, config)
-    model_patch_embed = functools.partial(model_cls_patch_embed, num_classes=1000)
+    model_patch_embed = functools.partial(model_cls_patch_embed, num_classes=2)
     x = model_patch_embed(train=False).apply(variables, inputs, mutable=False)
     config.classname = 'nest_modules.BlockImages'
     model_cls_block_images = basic_nest_defs.create_model(imagenet_config.model_name, config)
-    model_block_images = functools.partial(model_cls_block_images, num_classes=1000)
+    model_block_images = functools.partial(model_cls_block_images, num_classes=2)
     x = model_block_images(train=False).apply(variables, x, mutable=False)
     grads3, grads2, grads1, state3, state2, state1, agg_state3, agg_state2, agg_state1= calc_maps_and_grads_part__( x)
     return grads3, grads2, grads1, state3, state2, state1, agg_state3, agg_state2, agg_state1
@@ -265,7 +277,7 @@ def do_post_grad_level(level,inputs):
 
     config.classname = 'nest_modules.DenseBlock'
     model_cls_dense = basic_nest_defs.create_model(imagenet_config.model_name, config)
-    model_dense = functools.partial(model_cls_dense, num_classes=1000)
+    model_dense = functools.partial(model_cls_dense, num_classes=2)
     prob = model_dense(train=False, level=l).apply(variables, x, mutable=False)
     return prob
 
@@ -288,11 +300,11 @@ def calc_maps_and_grads(image):
     inputs = _preprocess(image)
     config.classname = 'nest_modules.PatchEmbaddingBlock'
     model_cls_patch_embed = basic_nest_defs.create_model(imagenet_config.model_name, config)
-    model_patch_embed = functools.partial(model_cls_patch_embed, num_classes=1000)
+    model_patch_embed = functools.partial(model_cls_patch_embed, num_classes=2)
     x = model_patch_embed(train=False).apply(variables, inputs, mutable=False)
     config.classname = 'nest_modules.BlockImages'
     model_cls_block_images = basic_nest_defs.create_model(imagenet_config.model_name, config)
-    model_block_images = functools.partial(model_cls_block_images, num_classes=1000)
+    model_block_images = functools.partial(model_cls_block_images, num_classes=2)
     x = model_block_images(train=False).apply(variables, x, mutable=False)
     grads0, state0, agg_state0, mult0 = calc_maps_and_grads_for_level(0, x)
     grads1, state1, agg_state1, mult1 = calc_maps_and_grads_for_level(1, x)
@@ -300,9 +312,9 @@ def calc_maps_and_grads(image):
     return mult0, mult1, mult2
 
 
-grads3, grads2,grads1, state3, state2, state1, agg_state3, agg_state2, agg_state1 = calc_maps_and_grads__(img)
-hh=grad_cat_level3(state3['intermediates']['features_maps'][0], grads3, grid_size=(1,1), patch_size=(14,14), win_part = 2)
-hhh=grad_cat_level3(state2['intermediates']['features_maps'][0], grads2, grid_size=(2,2), patch_size=(14,14), win_part = 4)
+#grads3, grads2,grads1, state3, state2, state1, agg_state3, agg_state2, agg_state1 = calc_maps_and_grads__(img)
+#hh=grad_cat_level3(state3['intermediates']['features_maps'][0], grads3, grid_size=(1,1), patch_size=(14,14), win_part = 2)
+#hhh=grad_cat_level3(state2['intermediates']['features_maps'][0], grads2, grid_size=(2,2), patch_size=(14,14), win_part = 4)
 #mult0, mult1, mult2 = calc_maps_and_grads(img)
 
 #h1_0 = -1*mult0
