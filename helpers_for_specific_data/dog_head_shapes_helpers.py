@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+from libml import preprocess
 
 allowed_labels_long = tf.constant([9, 18, 20, 25, 26, 61, 62, 63, 80, 81])
 allowed_labels_flat = tf.constant([3, 4, 91, 92, 94, 100, 102, 108])
@@ -38,3 +39,18 @@ def update_label(example, allowed_long=allowed_labels_long, allowed_flat=allowed
     #else:
     #    example['label']= np.full((1, 1), 2, dtype=int)
     return example
+
+def update_image_to_bb(example):
+    image = example["image"]
+    #shape = tf.io.extract_jpeg_shape(image)  # get image shape (height, width)
+    bndbox = example["objects"]["bbox"]
+    #xmin = int(bndbox[0, 0] * float(shape[0]))  # min row
+    #ymin = int(bndbox[0, 1] * float(shape[1]))  # min col
+    #xmax = int(bndbox[0, 2] * float(shape[0]))  # max row
+    #ymax = int(bndbox[0, 3] * float(shape[1]))  # max col
+    #image = preprocess.decode_crop_bounding_box_and_resize(image, 224,
+    #                                            xmin, ymin, xmax - xmin + 1, ymax - ymin + 1)
+    #mean = np.array(preprocess.IMAGENET_DEFAULT_MEAN).reshape(1, 1, 3)
+    #std = np.array(preprocess.IMAGENET_DEFAULT_STD).reshape(1, 1, 3)
+    #image = (image - mean) / std
+    example["image"] = image

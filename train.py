@@ -452,12 +452,12 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
 
       with jax.profiler.StepTraceAnnotation("train", step_num=step):
         try:
-            batch = jax.tree_map(np.asarray, next(train_iter))
+            batch1 = jax.tree_map(np.asarray, next(train_iter))
         except:
             continue
 
 
-        #batch = {"image": batch1["image"], "label":helpers.update_label(batch1["label"])}
+        batch = {"image": batch1["image"], "label":batch1["label"]}
         #print(batch1["image/filename"])
         drop_out_rng_step = jax.random.fold_in(drop_out_rng, step)
         drop_out_rng_step_all = jax.random.split(drop_out_rng_step,
