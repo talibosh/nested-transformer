@@ -54,7 +54,8 @@ def main(argv):
   logging.info("JAX host: %d / %d", jax.process_index(), jax.process_count())
   logging.info("JAX devices: %r", jax.devices())
 
-  train.train_and_evaluate(FLAGS.config, FLAGS.workdir)
+  #train.train_and_evaluate(FLAGS.config, FLAGS.workdir)
+  train.train_and_evaluate_loo(FLAGS.config, FLAGS.workdir)
 
 
 if __name__ == "__main__":

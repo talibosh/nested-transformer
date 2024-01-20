@@ -38,12 +38,12 @@ def get_config():
   """
   config = ml_collections.ConfigDict()
   config.model_name= "nest_base_s196_224"
-  config.per_device_batch_size = 1#16
+  config.per_device_batch_size = 4#16
 
   config.dataset = "cats_pain"
-  config.main_dir = "/home/tali/cat_pain" #location of dataset info
-  config.df_file = "/home/tali/cat_pain/cats.csv"
-  config.learning_rate = 5e-6 #2.5e-4
+  config.main_dir = "/home/tali/cat_pain1" #location of dataset info
+  config.df_file = "/home/tali/cat_pain1/cats1.csv"
+  config.learning_rate =2.5e-3# 2.5e-4
   config.optim = "adamw"
   config.optim_wd_ignore = ["pos_embedding"]
   config.grad_clip_max_norm = 0
@@ -57,7 +57,7 @@ def get_config():
   config.eval_pad_last_batch = True
   config.log_loss_every_steps = 3000 #3000
   config.eval_every_steps = -1
-  config.eval_per_epochs = 2 #10
+  config.eval_per_epochs = 10
   config.checkpoint_every_steps = 6000 #5000
   config.shuffle_buffer_size = 1000
 

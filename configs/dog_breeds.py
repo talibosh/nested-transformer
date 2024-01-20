@@ -41,7 +41,7 @@ def get_config():
   config.per_device_batch_size = 1#16
 
   config.dataset = "head_shape_stanford_dogs"
-  config.learning_rate = 5e-4 #2.5e-4
+  config.learning_rate = 5e-6 #2.5e-4
   config.optim = "adamw"
   config.optim_wd_ignore = ["pos_embedding"]
   config.grad_clip_max_norm = 0
@@ -78,7 +78,7 @@ def get_config():
   # Add mix style augmentation.
   #config.mix = ml_collections.ConfigDict()
   #config.mix.mixup_alpha = 0.8
-  #config.mix.prob_to_apply = 1.0  # Set to 0 to disable
+  #config.mix.prob_to_apply = 0.0 #1.0  # Set to 0 to disable
   #config.mix.smoothing = 0.1
 
   # Add color jitter.
@@ -88,7 +88,7 @@ def get_config():
   #config.colorjitter.colorjitter_strength = 0.3
   #config.colorjitter.size = 224
 
-  #config.eval_only = False
+  config.eval_only = False
   config.init_checkpoint = "./checkpoints/nest-b_imagenet/ckpt.39"
   config.reinit_head = "zero_all"
 

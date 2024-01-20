@@ -44,6 +44,8 @@ from models import resnet_v1
 from models import wide_resnet
 tf.config.experimental.set_visible_devices([], "GPU")
 import jaxlib
+import pandas as pd
+import shutil
 
 @flax.struct.dataclass
 class TrainState:
@@ -293,6 +295,51 @@ def evaluate(model: nn.Module,
       trace_context.next_step()
   return eval_metrics
 
+def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
+    df = pd.read_csv(config.df_file)
+    cat_ids=df['CatId'].tolist()
+
+    ids=np.unique(cat_ids)
+    for id in ids:
+        if id < 12:
+            continue
+
+        #get relevant rows
+        train_df = df[df["CatId"] != id]
+        eval_df = df[df["CatId"] == id]
+        train_pain = train_df[train_df["Valence"] == 1 ]
+        train_no_pain = train_df[train_df["Valence"] == 0]
+        eval_pain = eval_df[eval_df["Valence"] == 1]
+        eval_no_pain = eval_df[eval_df["Valence"] == 0]
+        #create temp dataset
+        temp_dir = '/home/tali/cat_pain/temp'
+        #create sub dirs
+        os.makedirs(os.path.join(temp_dir, 'train', 'pain'),exist_ok=True)
+        os.makedirs(os.path.join(temp_dir, 'train', 'no pain'), exist_ok=True)
+        os.makedirs(os.path.join(temp_dir, 'eval', 'pain'), exist_ok=True)
+        os.makedirs(os.path.join(temp_dir, 'eval', 'no pain'), exist_ok=True)
+
+        def copy_files(df, cp_dir):
+            f_list = df["FullPath"].tolist()
+            for f in f_list:
+                shutil.copy(f, cp_dir)
+
+        copy_files(train_pain, os.path.join(temp_dir, 'train', 'pain'))
+        copy_files(train_no_pain, os.path.join(temp_dir, 'train', 'no pain'))
+        copy_files(eval_pain, os.path.join(temp_dir, 'eval', 'pain'))
+        copy_files(eval_no_pain, os.path.join(temp_dir, 'eval', 'no pain'))
+        cur_workdir = os.path.join(workdir, str(id))
+        config.main_dir = temp_dir
+        print('***************start '+str(id)+' *************************\n')
+
+        train_and_evaluate(config, cur_workdir)
+        print('***************end ' + str(id) + ' *************************\n')
+        #delete temp
+        shutil.rmtree(temp_dir)
+        #config.eval_only = True
+        #config.init_checkpoint = "./checkpoints/nest_cats/checkpoints-0/ckpt.3"
+        #train_and_evaluate(config, cur_workdir) #eval
+
 
 def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
   """Runs a training and evaluation loop.
@@ -314,6 +361,10 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
   #update ds if needed
   train_sz = train_ds.cardinality().numpy()
   num_classes = ds_info.features["label"].num_classes
+  #if (config.dataset.startswith("cats_pain")):
+      #train_ds=train_ds.filter(helpers.predicat)
+      #eval_ds=eval_ds.filter(predicat1)
+      #train_iter = iter(train_ds)
   if (config.dataset.startswith("head_shape_stanford_dogs")):
       #import tensorflow_datasets as tfds
       #df = tfds.as_dataframe(train_ds.take(3), ds_info

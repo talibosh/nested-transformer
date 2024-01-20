@@ -187,6 +187,9 @@ def get_dataset_fns(
   elif config.dataset.startswith("cats_pain"):
       dataset_builder = tfds.ImageFolder(config.main_dir)
       input_size = config.get("input_size", 224)
+      train_split = 'train' #deterministic_data.get_read_instruction_for_host(
+          #"train", dataset_builder.info.splits["train"].num_examples)
+      test_split_name = "eval"
       if use_custom_process:
           # When using custom augmentation, we use mean/std normalization.
           logging.info("Configure augmentation type %s", config.augment.type)
@@ -208,7 +211,7 @@ def get_dataset_fns(
       else:
           # Standard imagenet(stanford_dogs is a subset) preprocess with 0-1 normalization
           preprocess_fn = functools.partial(
-              preprocess.train_preprocess_stanford_dogs, input_size=input_size)
+              preprocess.train_preprocess, input_size=input_size)
           eval_preprocess_fn = functools.partial(
               preprocess.eval_preprocess, input_size=input_size)
 
@@ -315,8 +318,11 @@ def create_datasets(
 
   num_validation_examples = (
       dataset_builder.info.splits[test_split_name].num_examples)
-  eval_split = deterministic_data.get_read_instruction_for_host(
-      test_split_name, num_validation_examples, drop_remainder=False)
+  if config.dataset.startswith('cats_pain'):
+      eval_split='eval'
+  else:
+      eval_split = deterministic_data.get_read_instruction_for_host(
+          test_split_name, num_validation_examples, drop_remainder=False)
 
   eval_num_batches = None
   if config.eval_pad_last_batch:
