@@ -115,5 +115,19 @@ def plot_grid(fname: str, out_path: str = [], show: bool = False, grades_level3=
 
   plt.close()
 
+def plot_heatmap_on_image(fname: str, out_path: str = [], show: bool = False):
+  im = Image.open(fname)
+  data = im.resize((224,224))
+  plt.imshow(data)
+  if out_path is not []:
+    plt.savefig(out_path)
+
+  if show:
+    plt.show()
+
+  plt.close()
+
+
+
 #fname = '/home/tali/mappingPjt/nst12/imgs/n02100877_7560 resized.jpg'
 #plot_grid(fname, [10,20,30,40], [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16])
