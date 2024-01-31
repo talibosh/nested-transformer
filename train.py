@@ -34,7 +34,7 @@ import jax.numpy as jnp
 import ml_collections
 import numpy as np
 import tensorflow as tf
-
+tf.config.experimental.set_visible_devices([], "GPU")
 import helpers_for_specific_data.dog_head_shapes_helpers as helpers
 from libml import input_pipeline
 from libml import losses
@@ -301,9 +301,8 @@ def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
 
     ids=np.unique(cat_ids)
     for id in ids:
-        if id < 12:
-            continue
-
+        #if id<25:
+        #    continue
         #get relevant rows
         train_df = df[df["CatId"] != id]
         eval_df = df[df["CatId"] == id]
