@@ -301,7 +301,7 @@ def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
 
     ids=np.unique(cat_ids)
     for id in ids:
-        #if id<25:
+        #if id<19:
         #    continue
         #get relevant rows
         train_df = df[df["CatId"] != id]
@@ -313,10 +313,18 @@ def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
         #create temp dataset
         temp_dir = '/home/tali/cat_pain/temp'
         #create sub dirs
+        train_pain_dir=os.path.join(temp_dir, 'train', 'pain')
+        train_no_pain_dir = os.path.join(temp_dir, 'train', 'no_pain')
+        eval_pain_dir = os.path.join(temp_dir, 'eval', 'pain')
+        eval_no_pain_dir = os.path.join(temp_dir, 'eval', 'no_pain')
+        shutil.rmtree(train_pain_dir, ignore_errors=True)
+        shutil.rmtree(train_no_pain_dir, ignore_errors=True)
+        shutil.rmtree(eval_pain_dir, ignore_errors=True)
+        shutil.rmtree(eval_no_pain_dir, ignore_errors=True)
         os.makedirs(os.path.join(temp_dir, 'train', 'pain'),exist_ok=True)
-        os.makedirs(os.path.join(temp_dir, 'train', 'no pain'), exist_ok=True)
+        os.makedirs(os.path.join(temp_dir, 'train', 'no_pain'), exist_ok=True)
         os.makedirs(os.path.join(temp_dir, 'eval', 'pain'), exist_ok=True)
-        os.makedirs(os.path.join(temp_dir, 'eval', 'no pain'), exist_ok=True)
+        os.makedirs(os.path.join(temp_dir, 'eval', 'no_pain'), exist_ok=True)
 
         def copy_files(df, cp_dir):
             f_list = df["FullPath"].tolist()
@@ -324,9 +332,9 @@ def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
                 shutil.copy(f, cp_dir)
 
         copy_files(train_pain, os.path.join(temp_dir, 'train', 'pain'))
-        copy_files(train_no_pain, os.path.join(temp_dir, 'train', 'no pain'))
+        copy_files(train_no_pain, os.path.join(temp_dir, 'train', 'no_pain'))
         copy_files(eval_pain, os.path.join(temp_dir, 'eval', 'pain'))
-        copy_files(eval_no_pain, os.path.join(temp_dir, 'eval', 'no pain'))
+        copy_files(eval_no_pain, os.path.join(temp_dir, 'eval', 'no_pain'))
         cur_workdir = os.path.join(workdir, str(id))
         config.main_dir = temp_dir
         print('***************start '+str(id)+' *************************\n')
