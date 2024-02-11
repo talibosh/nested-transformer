@@ -8,6 +8,7 @@ from models import nest_net
 import flax.linen as nn
 import ml_collections
 import train
+import numpy as np
 class NestForGradCAT():
     def __init__(self, checkpoint_dir: str, config:ml_collections.ConfigDict, num_classes:int):
         self.config = config
@@ -171,7 +172,10 @@ class NestForGradCAT():
                                    window_shape=(heatmap1.shape[1] // win_part, heatmap1.shape[2] // win_part),
                                    strides=(heatmap1.shape[1] // win_part, heatmap1.shape[2] // win_part))
 
-        return heatmap1, heatmap1_squares_avg
+        hm1 = np.array(heatmap1)
+        hm1 = hm1.squeeze()
+
+        return hm1, heatmap1_squares_avg
 
 
     def create_heatmaps_and_avg_heatmaps(self, inputs):
