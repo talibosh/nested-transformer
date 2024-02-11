@@ -32,6 +32,12 @@ class inference_and_gradCAT_one_id():
         return predicted_class, probs
 
     def gradCAT_one_id_one_class(self, class_id: int, images_list: list[str], model: nstGradCat.NestForGradCAT, out_dir: str = "", show: bool = False):
+        out_dir_heats_plots = os.path.join(out_dir, "heats_plots")
+        out_dir_heats = os.path.join(out_dir, "heats")
+
+        os.makedirs(out_dir_heats_plots, exist_ok=True)
+        os.makedirs(out_dir_heats, exist_ok=True)
+
         for img_path in images_list:
             image = PIL.Image.open(img_path)
             image = self.__preprocess(image)
@@ -40,6 +46,23 @@ class inference_and_gradCAT_one_id():
             out_path1 = os.path.join(out_dir, fname)
             os.makedirs(out_dir,exist_ok=True)
             trials.plot_grid(img_path, out_path1, show, avg_heatmap3, avg_heatmap2)
+            trials.plot_heatmap(img_path, out_dir_heats_plots, show, heatmap3 , heatmap2 ,(224,224))
+            ff = out_path1.replace(out_dir, out_dir_heats)
+            f3 = ff.replace('.jpg','_3.npy')
+            np.save(f3, heatmap3)
+            f2 = ff.replace('.jpg', '_2.npy')
+            np.save(f2, heatmap2)
+            #head, tail = os.path.split(img_path)
+            #if class_id is 0:
+            #    h='no_pain'
+            #if class_id is 1:
+            #    h='pain'
+            #msk_path = os.path.join(head, '..','masks', h, tail)
+            #seg_grades, rest_of_img_grades = trials.calc_grade_on_segment(msk_path, heatmaps)
+
+
+
+
 
 class inference_and_gradCAT_loo():
 
@@ -54,6 +77,7 @@ class inference_and_gradCAT_loo():
         num_classes = unique_classes.__len__()
         new_df = pandas.DataFrame()
         for id in unique_ids:
+            print('***************start ' + str(id) + ' *************************\n')
             model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, str(id),'checkpoints-0'), self.config, num_classes)
             eval_df = df[df["CatId"] == id]
             eval_pain = eval_df[eval_df["Valence"] == 1]
@@ -99,6 +123,7 @@ class inference_and_gradCAT_loo():
             pain_dir = os.path.join(out_root, str(id), 'pain')
             grad_cat.gradCAT_one_id_one_class(1, eval_pain["FullPath"].tolist(), model, pain_dir)
 
+
     def run_grad_CAT_loo(self, in_df_path : str, out_root : str):
         df = pandas.read_csv(in_df_path)
         self.gradCAT_loo(df, out_root)
@@ -107,13 +132,14 @@ class inference_and_gradCAT_loo():
 
 if __name__ == "__main__":
     from configs import cats_pain
-    #in_csv_path = '/home/tali/cat_pain1/cats1.csv'
-    #out_csv_path = '/home/tali/cat_pain1/cats1_infered.csv'
-    csv_path = '/home/tali/cat_pain1/cats1_infered.csv'
-    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/nest_cats/'
+    in_csv_path = '/home/tali/cats_pain_proj/face_images/cats.csv'#'/home/tali/cropped_cats_pain/cats.csv'
+    out_csv_path = '/home/tali/cats_pain_proj/face_images/cats_norm1_infered60.csv'
+    csv_path ='/home/tali/cats_pain_proj/face_images/cats_norm1_infered60.csv' #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
+    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/nest_cats_norm1_60/'
     config = cats_pain.get_config()
     loo_oper = inference_and_gradCAT_loo(chkpoints_root, config)
-    loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_res1')
+    #loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
+    loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_bb_res_test60')
 
 
 
