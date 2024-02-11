@@ -39,6 +39,87 @@ def run_rec_on_dir(square_size):
 
 from matplotlib import image
 from matplotlib import pyplot as plt
+import keras
+import matplotlib as mpl
+
+def calc_grade_on_segment(msk_path:str, heatmaps:list[np.array], outsz=(224,224)):
+  im = Image.open(msk_path)
+  msk = im.resize((outsz[1], outsz[0]), resample  = Image.NEAREST)
+  thresh = np.median(np.unique(msk))
+  msk1 = np.array(msk)
+  msk1[msk1<thresh] = 0
+  msk1[msk1>=thresh] = 1
+  seg_grades =[]
+  rest_of_img_grades = []
+  for map in heatmaps:
+    rszd_map = np.resize(map, outsz)
+    relevant_heat = rszd_map*msk1
+    grade_sum = np.sum(relevant_heat)
+    grade_normalized = grade_sum*np.sum(msk1)/(outsz[0]*outsz[1])
+    seg_grades.append(grade_normalized)
+    rest_img_grade = (np.sum(rszd_map)-grade_sum)*(outsz[0]*outsz[1]-np.sum(msk1))/(outsz[0]*outsz[1])
+    rest_of_img_grades.append(rest_img_grade)
+  return seg_grades, rest_of_img_grades
+
+
+def plot_heatmap(fname:str, out_path:str = [], show: bool = False, heatmap_level3 = [], heatmap_level2 = [], outsz=(224,224)):
+  alpha=0.7
+  im = Image.open(fname)
+  img = im.resize(outsz)
+
+  fname = os.path.basename(fname)
+
+  fname3 = "3" + fname
+  fname2 = "2" + fname
+  fname_both = "b" + fname
+
+  if heatmap_level3 is not []:
+    heatmap_level3=np.array(heatmap_level3)
+    heatmap_level3=heatmap_level3.squeeze()
+    heatmap_level3 = np.uint8(255 * heatmap_level3)
+  if heatmap_level2 is not []:
+    heatmap_level2 = np.array(heatmap_level2)
+    heatmap_level2 = heatmap_level2.squeeze()
+    heatmap_level2 = np.uint8(255 * heatmap_level2)
+
+  # Use jet colormap to colorize heatmap
+  jet = mpl.colormaps["jet"]
+
+  # Use RGB values of the colormap
+  jet_colors = jet(np.arange(256))[:, :3]
+  if heatmap_level3 is not []:
+    jet_heatmap3 = jet_colors[heatmap_level3]
+    # Create an image with RGB colorized heatmap
+    jet_heatmap3 = keras.utils.array_to_img(jet_heatmap3)
+    jet_heatmap3 = jet_heatmap3.resize((outsz[1], outsz[0]))
+    jet_heatmap3 = keras.utils.img_to_array(jet_heatmap3)
+    # Superimpose the heatmap on original image
+    superimposed_img3 = jet_heatmap3 * alpha + img
+    superimposed_img3 = keras.utils.array_to_img(superimposed_img3)
+
+    # Save the superimposed image
+    superimposed_img3.save(os.path.join(out_path,fname3))
+
+    #plt.imshow(jet_heatmap3)
+    #plt.show()
+
+  if heatmap_level2 is not []:
+    jet_heatmap2 = jet_colors[heatmap_level2]
+    # Create an image with RGB colorized heatmap
+    jet_heatmap2 = keras.utils.array_to_img(jet_heatmap2)
+    jet_heatmap2 = jet_heatmap2.resize((outsz[1], outsz[0]))
+    jet_heatmap2 = keras.utils.img_to_array(jet_heatmap2)
+    # Superimpose the heatmap on original image
+    superimposed_img2 = jet_heatmap2 * alpha + img
+    superimposed_img2 = keras.utils.array_to_img(superimposed_img2)
+    superimposed_img2.save(os.path.join(out_path, fname2))
+
+  both = jet_heatmap2*0.3 + jet_heatmap3*0.7
+  superimposed_both = both*alpha + img
+  superimposed_both = keras.utils.array_to_img(superimposed_both)
+  superimposed_both.save(os.path.join(out_path, fname_both))
+
+
 
 def plot_grid(fname: str, out_path: str = [], show: bool = False, grades_level3=[], grades_level2=[]):
   im = Image.open(fname)
