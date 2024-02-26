@@ -149,7 +149,7 @@ class OneImgOneSeg:
     return [prob_grade3, prob_grade2, prob_gradeb, prob_graded], [cnr3, cnr2, cnrb, cnrd]
 
 class OneImgAllSegs:
-  def __init__(self, alpha:float, img_path: str, segs_data:list[{'seg_name':str, 'instances_num':int, 'msk_path':str, 'heats_list':list[str]}, 'outSz':tuple(int,int)]):
+  def __init__(self, alpha:float, img_path: str, segs_data:list[{'seg_name':str, 'instances_num':int, 'msk_path':str, 'heats_list':list[str]}, 'outSz':tuple[int,int]]):
     self.alpha = alpha
     self.img_path = img_path
     self.segs_data = segs_data
@@ -173,18 +173,19 @@ class OneImgAllSegs:
 
 
 class CatsSegs:
-  def __init__(self, alpha: float, df: pd.DataFrame, out_sz: tuple(int, int), res_folder: str, imgs_root: str, msks_root: str, heats_root: str):
+  def __init__(self, alpha: float, df: pd.DataFrame, out_sz: tuple[int, int], res_folder: str, imgs_root: str, msks_root: str, heats_root: str):
     self.alpha = alpha
     self.out_sz = out_sz
     self.res_folder = res_folder
     self.df = df
+    self.imgs_root = imgs_root
     self.msks_root = msks_root
     self.heats_root = heats_root
     self.segs_names = ['face', 'ears', 'eyes', 'mouth']
-    self.face_masks_root = os.path.join(self.masks_root, 'face_images', 'masks')
-    self.ears_masks_root = os.path.join(self.masks_root, 'ears_images')
-    self.eyes_masks_root = os.path.join(self.masks_root, 'eyes_images')
-    self.mouth_masks_root = os.path.join(self.masks_root, 'mouth_images')
+    self.face_masks_root = os.path.join(self.msks_root, 'face_images', 'masks')
+    self.ears_masks_root = os.path.join(self.msks_root, 'ears_images')
+    self.eyes_masks_root = os.path.join(self.msks_root, 'eyes_images')
+    self.mouth_masks_root = os.path.join(self.msks_root, 'mouth_images')
 
   def get_heatmap_for_img(self, img_path: str, heatmap_name: str):
     head, tail = os.path.split(img_path)
@@ -200,10 +201,10 @@ class CatsSegs:
     return ff
 
   def analyze_one_img(self, img_full_path):
-    face_msk_path = img_full_path.replace(self.imgs_root_folder, self.face_masks_root)
-    ears_msk_path = img_full_path.replace(self.imgs_root_folder, self.ears_masks_root)
-    eyes_msk_path = img_full_path.replace(self.imgs_root_folder, self.eyes_masks_root)
-    mouth_msk_path = img_full_path.replace(self.imgs_root_folder, self.mouth_masks_root)
+    face_msk_path = img_full_path.replace(self.imgs_root, self.face_masks_root)
+    ears_msk_path = img_full_path.replace(self.imgs_root, self.ears_masks_root)
+    eyes_msk_path = img_full_path.replace(self.imgs_root, self.eyes_masks_root)
+    mouth_msk_path = img_full_path.replace(self.imgs_root, self.mouth_masks_root)
     heat3 = self.get_heatmap_for_img(img_full_path, '3')
     heat2 = self.get_heatmap_for_img(img_full_path, '2')
     heats_list = [ heat3, heat2]
@@ -221,7 +222,7 @@ class CatsSegs:
       self.analyze_one_img(img_full_path)
 
   def analyze_all(self):
-    imgs_paths = self.df['FullPath'].tolist
+    imgs_paths = self.df['FullPath'].tolist()
     self.analyze_img_lists(imgs_paths)
 
 
@@ -294,7 +295,7 @@ class WorkWithSegs:
     rszd_heatmap = (rszd_heatmap - rszd_heatmap.min()) / (rszd_heatmap.max() - rszd_heatmap.min())
     return rszd_heatmap
 
-  def analyze_img(self, img_path: str, osh:one_segment_one_heatmap_calc, id:int, valence: int):
+  def analyze_img(self, img_path: str, osh:OneSegOneHeatmapCalc, id:int, valence: int):
     hm3 = self.get_heatmap_for_img(img_path, '3',  id= id, valence =valence)
     hm2 = self.get_heatmap_for_img(img_path, '2',  id= id, valence =valence)
     hm_both = self.create_both_heatmap(hm3, hm2)
