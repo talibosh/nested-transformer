@@ -13,10 +13,14 @@ import os
 
 
 class inference_and_gradCAT_one_id():
+
+    def __init__(self, dataset_mean, dataset_std):
+        self.mean = dataset_mean
+        self.std = dataset_std
     def __preprocess(self,image):
         image = np.array(image.resize((224, 224))).astype(np.float32) / 255
-        mean = np.array(preprocess.IMAGENET_DEFAULT_MEAN).reshape(1, 1, 3)
-        std = np.array(preprocess.IMAGENET_DEFAULT_STD).reshape(1, 1, 3)
+        mean = np.array(self.mean).reshape(1, 1, 3) #np.array(preprocess.IMAGENET_DEFAULT_MEAN).reshape(1, 1, 3)
+        std = np.array(self.std).reshape(1, 1, 3) #np.array(preprocess.IMAGENET_DEFAULT_STD).reshape(1, 1, 3)
         image = (image - mean) / std
         return image[np.newaxis, ...]
     def inference_one_id_one_class(self, class_id: int, images_list: list[str], model:nstGradCat.NestForGradCAT):
@@ -82,7 +86,7 @@ class inference_and_gradCAT_loo():
             eval_df = df[df["CatId"] == id]
             eval_pain = eval_df[eval_df["Valence"] == 1]
             eval_no_pain = eval_df[eval_df["Valence"] == 0]
-            infer = inference_and_gradCAT_one_id()
+            infer = inference_and_gradCAT_one_id(self.config.mean, self.config.std)
             preds0, probs0 = infer.inference_one_id_one_class(0, eval_no_pain["FullPath"].tolist(), model)
             preds1, probs1 = infer.inference_one_id_one_class(1, eval_pain["FullPath"].tolist(), model)
             #df_preds_probs_no_pain = pandas.DataFrame({'Infered_Class': preds0,'Prob': probs0})
@@ -110,6 +114,8 @@ class inference_and_gradCAT_loo():
         num_classes = unique_classes.__len__()
         new_df = pandas.DataFrame()
         for id in unique_ids:
+            #if id<28:
+            #    continue
             model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, str(id),'checkpoints-0'), self.config, num_classes)
             eval_df = df[df["CatId"] == id]
             eval_pain = eval_df[eval_df["Valence"] == 1]
@@ -131,15 +137,25 @@ class inference_and_gradCAT_loo():
 
 
 if __name__ == "__main__":
+    #from configs import imagenet_nest
+    #config = imagenet_nest.get_config()
+    #model = nstGradCat.NestForGradCAT('/home/tali/mappingPjt/nst12/checkpoints/nest-b_imagenet/', config, 1000)
+    #img_path = 'n02086079_499.jpg'
+    #igi = inference_and_gradCAT_one_id()
+    #igi.inference_one_id_one_class(135, [img_path], model)
+    #igi.gradCAT_one_id_one_class(135, [img_path], model, '/home/tali/test_imgnet', False)
+
     from configs import cats_pain
     in_csv_path = '/home/tali/cats_pain_proj/face_images/cats.csv'#'/home/tali/cropped_cats_pain/cats.csv'
-    out_csv_path = '/home/tali/cats_pain_proj/face_images/cats_norm1_infered60.csv'
-    csv_path ='/home/tali/cats_pain_proj/face_images/cats_norm1_infered60.csv' #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
-    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/nest_cats_norm1_60/'
+    out_csv_path = '/home/tali/cats_pain_proj/face_images/cats_norm1_infered30.csv'
+    csv_path ='/home/tali/cats_pain_proj/face_images/cats_norm1_infered30.csv' #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
+    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/nest_cats/'
     config = cats_pain.get_config()
     loo_oper = inference_and_gradCAT_loo(chkpoints_root, config)
-    #loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
-    loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_bb_res_test60')
+    loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
+    #loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_bb_res_test50_minus')
+
+
 
 
 
