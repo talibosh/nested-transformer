@@ -134,8 +134,8 @@ class OneImgOneSeg:
     osh = self.get_msk_for_img()
     if osh == []:
       return [], []
-    hm3 = self.get_heatmap_for_img(self.heatmap_paths[0])
-    hm2 = self.get_heatmap_for_img(self.heatmap_paths[1])
+    hm3 = self.get_one_heatmap_for_img(self.heatmap_paths[0])
+    hm2 = self.get_one_heatmap_for_img(self.heatmap_paths[1])
     hm_both = self.create_both_heatmap(hm3, hm2)
     hm_bothd = self.create_both_dup_heatmap(hm3, hm2)
     relevant_heat3, rszd_heat3 = osh.calc_relevant_heat(hm3)
@@ -380,7 +380,7 @@ def grade_maps_metrices(df: pd.DataFrame):
 if __name__ == "__main__":
   df = pd.read_csv("/home/tali/cats_pain_proj/face_images/cats_norm1_infered50.csv")
   catsSegs = CatsSegs(alpha=0.7, df =df, out_sz=(32, 32), res_folder = '/home/tali',
-                      imgs_root='/home/tali/cats_pain_proj/face_images/',
+                      imgs_root='/home/tali/cats_pain_proj/face_images',
                       msks_root = '/home/tali/cats_pain_proj',
                       heats_root = '/home/tali/trials/cats_bb_res_test50_minus/')
   catsSegs.analyze_all()
