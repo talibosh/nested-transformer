@@ -61,6 +61,14 @@ class NestNet(nn.Module):
 
     norm_fn = attn_utils.get_norm_layer(
         self.train, self.dtype, norm_type=config.norm_type)
+    #norm_fn = attn_utils.get_norm_layer(
+    #  False, self.dtype, norm_type=config.norm_type)
+
+    norm_fn1 = attn_utils.get_norm_layer(
+        self.train, self.dtype, norm_type=config.norm_type)
+    #norm_fn1 = attn_utils.get_norm_layer(
+    #  False, self.dtype, norm_type=config.norm_type)
+
     conv_fn = functools.partial(
         nn.Conv, dtype=self.dtype, kernel_init=default_kernel_init)
     dense_fn = functools.partial(
@@ -76,6 +84,7 @@ class NestNet(nn.Module):
         attn_drop=config.attn_drop,
         proj_drop=config.proj_drop,
         train=self.train,
+        #train=False,
         dtype=self.dtype)
     x = self_attention.PatchEmbedding(
         conv_fn=conv_fn,
@@ -120,7 +129,7 @@ class NestNet(nn.Module):
     assert x.shape[1] == 1
     assert x.shape[2] == config.patch_size**2
 
-    x = norm_fn()(x)
+    x = norm_fn1()(x)
     x_pool = jnp.mean(x, axis=(1, 2))
     out = dense_fn(self.num_classes)(x_pool)
     return out

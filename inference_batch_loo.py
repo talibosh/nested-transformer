@@ -114,8 +114,8 @@ class inference_and_gradCAT_loo():
         num_classes = unique_classes.__len__()
         new_df = pandas.DataFrame()
         for id in unique_ids:
-            #if id<28:
-            #    continue
+            if id<1:
+                continue
             model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, str(id),'checkpoints-0'), self.config, num_classes)
             eval_df = df[df["CatId"] == id]
             eval_pain = eval_df[eval_df["Valence"] == 1]
@@ -123,7 +123,7 @@ class inference_and_gradCAT_loo():
 
             eval_no_pain = eval_df[eval_df["Valence"] == 0]
             eval_no_pain = eval_no_pain[eval_no_pain["Infered_Class"] == 0]
-            grad_cat = inference_and_gradCAT_one_id()
+            grad_cat = inference_and_gradCAT_one_id(self.config.mean, self.config.std)
             no_pain_dir = os.path.join(out_root, str(id), 'no pain')
             grad_cat.gradCAT_one_id_one_class(0, eval_no_pain["FullPath"].tolist(), model, no_pain_dir)
             pain_dir = os.path.join(out_root, str(id), 'pain')
@@ -146,14 +146,14 @@ if __name__ == "__main__":
     #igi.gradCAT_one_id_one_class(135, [img_path], model, '/home/tali/test_imgnet', False)
 
     from configs import cats_pain
-    in_csv_path = '/home/tali/cats_pain_proj/face_images/cats.csv'#'/home/tali/cropped_cats_pain/cats.csv'
-    out_csv_path = '/home/tali/cats_pain_proj/face_images/cats_norm1_infered30.csv'
-    csv_path ='/home/tali/cats_pain_proj/face_images/cats_norm1_infered30.csv' #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
+    in_csv_path = '/home/tali/cats_pain_proj/face_images/masked_images/cats_masked.csv'#'/home/tali/cropped_cats_pain/cats.csv'
+    out_csv_path = '/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50.csv'
+    csv_path ='/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50.csv' #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
     chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/nest_cats/'
     config = cats_pain.get_config()
     loo_oper = inference_and_gradCAT_loo(chkpoints_root, config)
-    loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
-    #loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_bb_res_test50_minus')
+    #loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
+    loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_finetune_mask_relu_res_test50')
 
 
 

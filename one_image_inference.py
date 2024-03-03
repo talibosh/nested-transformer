@@ -21,7 +21,7 @@ from models import nest_net
 import train
 from configs import cifar_nest
 from configs import imagenet_nest
-from configs import dog_breeds
+from configs import cats_pain
 from jax import grad  # for gradCAT
 
 from models import nest_modules
@@ -38,17 +38,17 @@ print('Current folder content', os.listdir())
 
 
 #checkpoint_dir = "./nested-transformer/checkpoints/"
-#checkpoint_dir = "./checkpoints/"
-checkpoint_dir = "./checkpoints/nest_dogs/checkpoints-0/"
+checkpoint_dir = "./checkpoints/"
+#checkpoint_dir = './checkpoints/nest_cats_norm1_60/12/checkpoints-0/'#"./checkpoints/nest_dogs/checkpoints-0/"
 remote_checkpoint_dir = "gs://gresearch/nest-checkpoints/nest-b_imagenet"
 print('List checkpoints: ')
 
 # Use checkpoint of host 0.
-#imagenet_config = imagenet_nest.get_config()
-imagenet_config = dog_breeds.get_config()
-#state_dict = train.checkpoint.load_state_dict(
-#    os.path.join(checkpoint_dir, os.path.basename(remote_checkpoint_dir)))
-state_dict = train.checkpoint.load_state_dict(checkpoint_dir)
+imagenet_config = imagenet_nest.get_config()
+#imagenet_config =cats_pain.get_config()
+state_dict = train.checkpoint.load_state_dict(
+    os.path.join(checkpoint_dir, os.path.basename(remote_checkpoint_dir)))
+#state_dict = train.checkpoint.load_state_dict(checkpoint_dir)
 
 variables = {
     "params": state_dict["optimizer"]["target"],
@@ -57,12 +57,12 @@ variables.update(state_dict["model_state"])
 model_cls = nest_net.create_model(imagenet_config.model_name, imagenet_config)
 #model = functools.partial(model_cls, num_classes=1000)
 
-model = functools.partial(model_cls, num_classes=2)
+model = functools.partial(model_cls, num_classes=1000)
 import PIL
 
 #img = PIL.Image.open('dog.jpg')
-img = PIL.Image.open("n02088094_60.jpg")#afghan hound
-#img = PIL.Image.open('13-0014.jpg')
+#img = PIL.Image.open('/home/tali/cats_pain_proj/face_images/pain/cat_12_video_3.11.jpg')#afghan hound
+img = PIL.Image.open('n02086079_499.jpg')
 img
 #%%
 def predict(image):
@@ -143,6 +143,6 @@ def try_grad(inputs):
 
 input = _preprocess(img)
 #x=_try_conv(input)
-my_grads = try_grad(input)
+#my_grads = try_grad(input)
 cls, prob = predict(input)
 print(f'ImageNet class id: {cls[0]}, prob: {prob[0]}')

@@ -194,11 +194,16 @@ def get_dataset_fns(
           # When using custom augmentation, we use mean/std normalization.
           logging.info("Configure augmentation type %s", config.augment.type)
           mean = tf.constant(
-              preprocess.IMAGENET_DEFAULT_MEAN, dtype=tf.float32, shape=[1, 1, 3])
+              preprocess.CATS_DEFAULT_MEAN, dtype=tf.float32, shape=[1, 1, 3])
           std = tf.constant(
-              preprocess.IMAGENET_DEFAULT_STD, dtype=tf.float32, shape=[1, 1, 3])
+              preprocess.CATS_DEFAULT_STD, dtype=tf.float32, shape=[1, 1, 3])
+
+          #mean = tf.constant(
+          #    preprocess.IMAGENET_DEFAULT_MEAN, dtype=tf.float32, shape=[1, 1, 3])
+          #std = tf.constant(
+          #    preprocess.IMAGENET_DEFAULT_STD, dtype=tf.float32, shape=[1, 1, 3])
           basic_preprocess_fn = functools.partial(
-              preprocess.train_preprocess(), input_size=input_size)
+              preprocess.train_preprocess, input_size=input_size)
           preprocess_fn = preprocess.get_augment_preprocess(
               config.get(AUGMENT),
               colorjitter_params=config.get(COLORJITTER),

@@ -121,14 +121,14 @@ class NestForGradCAT():
     def calc_ftr_maps_and_grads_part(self, inputs):
         x, state3, agg_state3 = self.do_bef_grad_level_transformers_3(inputs)
         grad_func3 = jax.grad(self.do_post_grad_level_3)
-        grads3 = -1*grad_func3(x)
+        grads3 = grad_func3(x)
 
         x, state2, agg_state2 = self.do_bef_grad_level_transformers_2(inputs)
         grad_func2 = jax.grad(self.do_post_grad_level_2)
-        grads2 = -1*grad_func2(x)
+        grads2 = grad_func2(x)
         x, state1, agg_state1 = self.do_bef_grad_level_transformers_1(inputs)
         grad_func1 = jax.grad(self.do_post_grad_level_1)
-        grads1 = -1*grad_func1(x)
+        grads1 = grad_func1(x)
         return grads3, grads2, grads1, state3, state2, state1, agg_state3, agg_state2, agg_state1
 
     def calc_ftr_maps_and_grads(self, inputs):
@@ -153,16 +153,21 @@ class NestForGradCAT():
             grads_shaped = grads
 
         pooled_grads = grads_shaped.squeeze().mean((0, 1))
+        #pooled_grads = grads_shaped.squeeze()
         conv_output = ftrs_shaped.squeeze()
 
         for i in range(len(pooled_grads)):
             conv_output = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_grads[i])
 
+        #conv_output = np.multiply(pooled_grads, conv_output)
         heatmap = conv_output.mean(axis=-1)
 
-        #heatmap1 = flax.linen.relu(heatmap) / heatmap.max()
+        heatmap1 = flax.linen.relu(heatmap)# / heatmap.max()
         #heatmap1 = heatmap / heatmap.max()
-        heatmap1 = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min())
+        if np.max(heatmap1) == 0:
+            heatmap1 = np.zeros(heatmap1.shape)
+        else:
+            heatmap1 = (heatmap1 - heatmap1.min()) / (heatmap1.max() - heatmap1.min())
 
         #heatmap3 = heatmap3.reshape(1, heatmap3.shape[0], heatmap3.shape[1], 1)
         #h11_ = flax.linen.avg_pool(heatmap3,

@@ -20,6 +20,7 @@ import math
 
 
 from configs import dog_breeds
+from configs import cats_pain
 
 tf.config.experimental.set_visible_devices([], "GPU")
 logging.set_verbosity(logging.INFO)
@@ -31,12 +32,12 @@ print('Current folder content', os.listdir())
 #checkpoint_dir = "../checkpoints/"
 #remote_checkpoint_dir = "gs://gresearch/nest-checkpoints/nest-b_imagenet"
 
-checkpoint_dir = "checkpoints/nest_dogs/checkpoints-0/"
+checkpoint_dir = "checkpoints/nest_cats/3/checkpoints-0/"
 print('List checkpoints: ')
 
 # Use checkpoint of host 0.
 #imagenet_config = imagenet_nest.get_config()
-imagenet_config = dog_breeds.get_config()
+imagenet_config = cats_pain.get_config()
 
 
 #state_dict = train.checkpoint.load_state_dict(
