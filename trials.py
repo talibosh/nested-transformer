@@ -91,7 +91,7 @@ def plot_heatmap(fname:str, out_path:str = [], show: bool = False, heatmap_level
     jet_heatmap3 = jet_colors[heatmap_level3]
     # Create an image with RGB colorized heatmap
     jet_heatmap3 = keras.utils.array_to_img(jet_heatmap3)
-    jet_heatmap3 = jet_heatmap3.resize((outsz[1], outsz[0]))
+    jet_heatmap3 = jet_heatmap3.resize((outsz[1], outsz[0]), Image.BILINEAR)
     jet_heatmap3 = keras.utils.img_to_array(jet_heatmap3)
     # Superimpose the heatmap on original image
     superimposed_img3 = jet_heatmap3 * alpha + img
@@ -107,7 +107,7 @@ def plot_heatmap(fname:str, out_path:str = [], show: bool = False, heatmap_level
     jet_heatmap2 = jet_colors[heatmap_level2]
     # Create an image with RGB colorized heatmap
     jet_heatmap2 = keras.utils.array_to_img(jet_heatmap2)
-    jet_heatmap2 = jet_heatmap2.resize((outsz[1], outsz[0]))
+    jet_heatmap2 = jet_heatmap2.resize((outsz[1], outsz[0]),Image.BILINEAR)
     jet_heatmap2 = keras.utils.img_to_array(jet_heatmap2)
     # Superimpose the heatmap on original image
     superimposed_img2 = jet_heatmap2 * alpha + img
