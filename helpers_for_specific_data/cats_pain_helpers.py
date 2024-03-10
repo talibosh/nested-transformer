@@ -1,5 +1,10 @@
+import pandas as pd
 import tensorflow as tf
 import numpy as np
+import os
+import cv2
+from utils import merge_images
+from utils import seg_utils
 from libml import preprocess
 
 allowed_labels_long = tf.constant([9, 18, 20, 25, 26, 61, 62, 63, 80, 81])
@@ -54,3 +59,45 @@ def update_image_to_bb(example):
     #std = np.array(preprocess.IMAGENET_DEFAULT_STD).reshape(1, 1, 3)
     #image = (image - mean) / std
     example["image"] = image
+
+
+
+def merge_cats_images(imgs_root:str, msks_root:str, df:pd.DataFrame, out_path:str):
+    segs_names = ['face', 'ears', 'eyes', 'mouth']
+    face_masks_root = os.path.join(msks_root, 'face_images', 'masks')
+    ears_masks_root = os.path.join(msks_root, 'ears_images')
+    eyes_masks_root = os.path.join(msks_root, 'eyes_images')
+    mouth_masks_root = os.path.join(msks_root, 'mouth_images')
+
+    imgs_list = df["FullPath"].tolist()
+    for img_full_path in imgs_list:
+        ears_msk_path = img_full_path.replace(imgs_root, ears_masks_root)
+        face_msk_path = img_full_path.replace(imgs_root, face_masks_root)
+
+        eyes_msk_path = img_full_path.replace(imgs_root, eyes_masks_root)
+        mouth_msk_path = img_full_path.replace(imgs_root, mouth_masks_root)
+        if os.path.isfile(face_msk_path) is False or os.path.isfile(ears_msk_path) is False or os.path.isfile(eyes_msk_path) is False or os.path.isfile(mouth_msk_path) is False:
+            continue
+        tmp_sz = (224, 224)
+        seg_sz = (224, 224)
+        face_seg = seg_utils.get_seg_image(face_msk_path, img_full_path, tmp_sz, seg_sz)
+        ears_seg = seg_utils.get_seg_image(ears_msk_path, img_full_path, tmp_sz, seg_sz)
+        eyes_seg = seg_utils.get_seg_image(eyes_msk_path, img_full_path, tmp_sz, seg_sz)
+        mouth_seg = seg_utils.get_seg_image(mouth_msk_path, img_full_path, tmp_sz, seg_sz)
+        seg1 = np.concatenate([face_seg, ears_seg],1)
+        seg2 = np.concatenate([eyes_seg, mouth_seg], 1)
+        new_data = np.concatenate([seg1, seg2], 0)
+        new_data = cv2.resize(new_data, tmp_sz, cv2.INTER_CUBIC)
+        save_path = img_full_path.replace(imgs_root, out_path)
+        cv2.imwrite(save_path, new_data)
+
+if __name__ == "__main__":
+
+    df = pd.read_csv("/home/tali/cats_pain_proj/face_images/cats.csv")
+    imgs_root = '/home/tali/cats_pain_proj/face_images'
+    msks_root = '/home/tali/cats_pain_proj'
+    merge_cats_images(imgs_root, msks_root, df, '/home/tali/cats_pain_proj/seg_images_224')
+
+
+
+
