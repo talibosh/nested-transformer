@@ -87,16 +87,68 @@ def merge_cats_images(imgs_root:str, msks_root:str, df:pd.DataFrame, out_path:st
         seg1 = np.concatenate([face_seg, ears_seg],1)
         seg2 = np.concatenate([eyes_seg, mouth_seg], 1)
         new_data = np.concatenate([seg1, seg2], 0)
-        new_data = cv2.resize(new_data, tmp_sz, cv2.INTER_CUBIC)
+        new_data = cv2.resize(new_data, tmp_sz, cv2.INTER_LINEAR)
         save_path = img_full_path.replace(imgs_root, out_path)
         cv2.imwrite(save_path, new_data)
 
+def get_heats_plots_out_path(img_path: str, heats_plot_out_folder:str):
+    head, tail = os.path.split(img_path)
+    f_splits = tail.split('_')
+    id = f_splits[1]
+    valence_name = 'pain'
+    if img_path.find('no pain') >= 0 or img_path.find('no_pain') >= 0:
+        valence_name = 'no pain'
+
+    heat_maps_loc = os.path.join(heats_plot_out_folder, id, valence_name, 'heats_plots')
+    # heat_maps_loc = head.replace(self.imgs_root_folder, self.heats_folder)
+    #ff = heat_maps_loc.replace('.jpg', '_' + heatmap_name + '.npy')
+    return heat_maps_loc
+
+def get_heatmap_for_img(img_path: str, heats_root:str, heatmap_name: str):
+    head, tail = os.path.split(img_path)
+    f_splits = tail.split('_')
+    id = f_splits[1]
+    valence_name = 'pain'
+    if img_path.find('no pain') >= 0 or img_path.find('no_pain') >= 0:
+        valence_name = 'no pain'
+
+    heat_maps_loc = os.path.join(heats_root, id, valence_name, 'heats', tail)
+    # heat_maps_loc = head.replace(self.imgs_root_folder, self.heats_folder)
+    ff = heat_maps_loc.replace('.jpg', '_' + heatmap_name + '.npy')
+    return ff
+
+def create_cats_heats_images(imgs_root:str, msks_root:str, heats_root:str, df:pd.DataFrame, out_path:str):
+
+    imgs_list = df["FullPath"].tolist()
+    for img_full_path in imgs_list:
+
+        face_msk_path = img_full_path.replace(imgs_root, msks_root)
+        img_full_path = img_full_path.replace('/home/tali/cats_pain_proj/face_images/masked_images', '/home/tali/cats_pain_proj/face_images')
+        if os.path.isfile(face_msk_path) is False:
+            continue
+        out_sz = (224, 224)
+        am3_path=get_heatmap_for_img(img_full_path,heats_root, '3')
+        am2_path=get_heatmap_for_img(img_full_path, heats_root, '2')
+        if os.path.isfile(am3_path) is False:
+            continue
+        out_folder=get_heats_plots_out_path(img_full_path, out_path)
+        alpha = 0.7
+        seg_utils.create_heatmaps(face_msk_path, img_full_path,am3_path, am2_path, out_sz,alpha, out_folder)
+
+
 if __name__ == "__main__":
 
-    df = pd.read_csv("/home/tali/cats_pain_proj/face_images/cats.csv")
-    imgs_root = '/home/tali/cats_pain_proj/face_images'
-    msks_root = '/home/tali/cats_pain_proj'
-    merge_cats_images(imgs_root, msks_root, df, '/home/tali/cats_pain_proj/seg_images_224')
+    #df = pd.read_csv("/home/tali/cats_pain_proj/face_images/cats.csv")
+    #imgs_root = '/home/tali/cats_pain_proj/face_images'
+    #msks_root = '/home/tali/cats_pain_proj'
+    #merge_cats_images(imgs_root, msks_root, df, '/home/tali/cats_pain_proj/seg_images_224')
+
+    df = pd.read_csv("/home/tali/cats_pain_proj/face_images/masked_images/cats_masked.csv")
+    imgs_root = '/home/tali/cats_pain_proj/face_images/masked_images'
+    msks_root = '/home/tali/cats_pain_proj/face_images/masked_images/masks'
+    heats_root = '/home/tali/trials/cats_finetune_mask_seg_test50_1/'
+    out_path = heats_root
+    create_cats_heats_images(imgs_root, msks_root, heats_root, df, out_path)
 
 
 
