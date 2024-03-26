@@ -151,28 +151,30 @@ class NestForGradCAT():
                 grads, grid_size=grid_size, patch_size=patch_size)
         else:
             grads_shaped = grads
-
+        pooled_ftrs = ftrs_shaped.squeeze().mean((0,1))
         pooled_grads = grads_shaped.squeeze().mean((0, 1))
         #pooled_grads = grads_shaped.squeeze()
         conv_output = ftrs_shaped.squeeze()
 
         for i in range(len(pooled_grads)):
+            #conv_output = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_ftrs[i]) #CAM
             conv_output = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_grads[i])
 
         #conv_output = np.multiply(pooled_grads, conv_output)
         heatmap = conv_output.mean(axis=-1)
 
-        heatmap1 = flax.linen.relu(heatmap)# / heatmap.max()
+        #heatmap1 = flax.linen.relu(heatmap)# / heatmap.max()
         #heatmap1 = heatmap / heatmap.max()
-        if np.max(heatmap1) == 0:
-            heatmap1 = np.zeros(heatmap1.shape)
-        else:
-            heatmap1 = (heatmap1 - heatmap1.min()) / (heatmap1.max() - heatmap1.min())
+        #if np.max(heatmap1) == 0:
+        #    heatmap1 = np.zeros(heatmap1.shape)
+        #else:
+        #    heatmap1 = (heatmap1 - heatmap1.min()) / (heatmap1.max() - heatmap1.min())
 
         #heatmap3 = heatmap3.reshape(1, heatmap3.shape[0], heatmap3.shape[1], 1)
         #h11_ = flax.linen.avg_pool(heatmap3,
         #                           window_shape=(heatmap3.shape[1] // win_part, heatmap3.shape[2] // win_part),
         #                           strides=(heatmap3.shape[1] // win_part, heatmap3.shape[2] // win_part))
+        heatmap1=heatmap
         heatmap1 = heatmap1.reshape(1, heatmap1.shape[0], heatmap1.shape[1], 1)
         heatmap1_squares_avg = flax.linen.avg_pool(heatmap1,
                                    window_shape=(heatmap1.shape[1] // win_part, heatmap1.shape[2] // win_part),
