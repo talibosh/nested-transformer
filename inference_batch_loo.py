@@ -50,7 +50,7 @@ class inference_and_gradCAT_one_id():
             out_path1 = os.path.join(out_dir, fname)
             os.makedirs(out_dir,exist_ok=True)
             trials.plot_grid(img_path, out_path1, show, avg_heatmap3, avg_heatmap2)
-            trials.plot_heatmap(img_path, out_dir_heats_plots, show, heatmap3 , heatmap2 ,(224,224))
+            #trials.plot_heatmap(img_path, out_dir_heats_plots, show, heatmap3 , heatmap2 ,(224,224))
             ff = out_path1.replace(out_dir, out_dir_heats)
             f3 = ff.replace('.jpg','_3.npy')
             np.save(f3, heatmap3)
@@ -146,14 +146,14 @@ if __name__ == "__main__":
     #igi.gradCAT_one_id_one_class(135, [img_path], model, '/home/tali/test_imgnet', False)
 
     from configs import cats_pain
-    in_csv_path = '/home/tali/cats_pain_proj/face_images/masked_images/cats_masked.csv'#'/home/tali/cropped_cats_pain/cats.csv'
-    out_csv_path = '/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50.csv'
-    csv_path ='/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50.csv' #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
-    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/nest_cats/'
+    in_csv_path = "/home/tali/cats_pain_proj/face_images/masked_images/cats_masked.csv"#'/home/tali/cropped_cats_pain/cats.csv'
+    out_csv_path = "/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50.csv"
+    csv_path ="/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50.csv" #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
+    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/nest_cats_finetune_50_mask/'
     config = cats_pain.get_config()
     loo_oper = inference_and_gradCAT_loo(chkpoints_root, config)
     #loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
-    loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_finetune_mask_relu_res_test50')
+    loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_finetune_mask_seg_test50_cam')
 
 
 
