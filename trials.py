@@ -1,7 +1,9 @@
-
+import cv2
 from PIL import Image
 import os, sys
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 
 
 path = '/home/tali/mappingPjt/nst12/imgs/'
@@ -63,58 +65,46 @@ def calc_grade_on_segment(msk_path:str, heatmaps:list[np.array], outsz=(224,224)
 
 
 def plot_heatmap(fname:str, out_path:str = [], show: bool = False, heatmap_level3 = [], heatmap_level2 = [], outsz=(224,224)):
-  alpha=0.7
-  im = Image.open(fname)
-  img = im.resize(outsz)
+  alpha=0.3
+  im = cv2.imread(fname) #Image.open(fname)
+  img = cv2.resize(im,outsz, cv2.INTER_CUBIC) #im.resize(outsz)
 
-  fname = os.path.basename(fname)
+  fname_ = os.path.basename(fname)
 
-  fname3 = "3" + fname
-  fname2 = "2" + fname
-  fname_both = "b" + fname
+  fname3 = "3" + fname_
+  fname2 = "2" + fname_
+  fname_both = "b" + fname_
 
   if heatmap_level3 is not []:
     heatmap_level3=np.array(heatmap_level3)
     heatmap_level3=heatmap_level3.squeeze()
-    heatmap_level3 = np.uint8(255 * heatmap_level3)
+    # Apply a colormap
+
+    hm3 = cv2.resize(heatmap_level3, (224, 224), cv2.INTER_CUBIC)
+    hm3_ = cm.jet(hm3)
+    superimposed_img3 = hm3_ * alpha + img
+    superimposed_img3 = keras.utils.array_to_img(superimposed_img3)
+
+    # Save the superimposed image
+    superimposed_img3.save(os.path.join(out_path, fname3))
+
+    #heatmap_level3 = np.uint8(255 * heatmap_level3)
   if heatmap_level2 is not []:
     heatmap_level2 = np.array(heatmap_level2)
     heatmap_level2 = heatmap_level2.squeeze()
-    heatmap_level2 = np.uint8(255 * heatmap_level2)
+   # heatmap_level2 = np.uint8(255 * heatmap_level2)
+
+    hm2 = cv2.resize(heatmap_level2, (224, 224), cv2.INTER_CUBIC)
+    hm2_ = cm.jet(heatmap_level2)
+    superimposed_img2 = hm2_ * alpha + img
+    superimposed_img2 = keras.utils.array_to_img(superimposed_img2)
+    superimposed_img2.save(os.path.join(out_path, fname2))
 
   # Use jet colormap to colorize heatmap
   jet = mpl.colormaps["jet"]
 
-  # Use RGB values of the colormap
-  jet_colors = jet(np.arange(256))[:, :3]
-  if heatmap_level3 is not []:
-    jet_heatmap3 = jet_colors[heatmap_level3]
-    # Create an image with RGB colorized heatmap
-    jet_heatmap3 = keras.utils.array_to_img(jet_heatmap3)
-    jet_heatmap3 = jet_heatmap3.resize((outsz[1], outsz[0]), Image.BILINEAR)
-    jet_heatmap3 = keras.utils.img_to_array(jet_heatmap3)
-    # Superimpose the heatmap on original image
-    superimposed_img3 = jet_heatmap3 * alpha + img
-    superimposed_img3 = keras.utils.array_to_img(superimposed_img3)
 
-    # Save the superimposed image
-    superimposed_img3.save(os.path.join(out_path,fname3))
-
-    #plt.imshow(jet_heatmap3)
-    #plt.show()
-
-  if heatmap_level2 is not []:
-    jet_heatmap2 = jet_colors[heatmap_level2]
-    # Create an image with RGB colorized heatmap
-    jet_heatmap2 = keras.utils.array_to_img(jet_heatmap2)
-    jet_heatmap2 = jet_heatmap2.resize((outsz[1], outsz[0]),Image.BILINEAR)
-    jet_heatmap2 = keras.utils.img_to_array(jet_heatmap2)
-    # Superimpose the heatmap on original image
-    superimposed_img2 = jet_heatmap2 * alpha + img
-    superimposed_img2 = keras.utils.array_to_img(superimposed_img2)
-    superimposed_img2.save(os.path.join(out_path, fname2))
-
-  both = jet_heatmap2*0.3 + jet_heatmap3*0.7
+  both = hm2_*0.3 + hm3_*0.7
   superimposed_both = both*alpha + img
   superimposed_both = keras.utils.array_to_img(superimposed_both)
   superimposed_both.save(os.path.join(out_path, fname_both))
