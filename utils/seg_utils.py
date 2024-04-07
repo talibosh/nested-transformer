@@ -80,6 +80,7 @@ def create_heat_map(img:np.array, activation_map:np.array):
     single_map = single_map.astype(np.uint8)
     jet_map = cv2.applyColorMap(single_map, cv2.COLORMAP_JET)
     super_imposed_map = img*0.7 + 0.4*jet_map
+    super_imposed_map = cv2.resize(super_imposed_map, (224,224), cv2.INTER_LINEAR)
     return norm_map, jet_map, super_imposed_map
 
 def create_combined_maps(activation_map1:np.array, activation_map2:np.array, alpha:float):

@@ -1,3 +1,4 @@
+import pandas
 from PIL import Image
 import os, sys
 import numpy as np
@@ -106,6 +107,7 @@ class OneImgOneSeg:
     def create_both_heatmap(self, hm3: np.array, hm2: np.array, alpha: float):
         assert (hm3.shape == hm2.shape)
         hmb = hm3 * alpha + hm2 * (1 - alpha)
+        #hmb = hm3 + hm2 * (1 - alpha)
         #hmb = (hmb - hmb.min()) / (hmb.max() - hmb.min())
         hmb = hmb / np.sum(hmb)
         return hmb
@@ -259,8 +261,8 @@ class CatsSegs:
         #eval = self.df[self.df["Valence"] == cls]
         #eval = eval[eval["Infered_Class"] == cls]
         eval = self.df[self.df["Valence"] == self.df["Infered_Class"]]
-        eval = eval[eval["Valence"] == cls]
-        eval = eval[eval["Prob"] > 0.85]
+        #eval = eval[eval["Valence"] == cls]
+        eval = eval[eval["Prob"] > 0.5]
         imgs_paths = eval['FullPath'].tolist()
         all_outs = self.analyze_img_lists(imgs_paths)
         return all_outs
@@ -701,7 +703,8 @@ def plot_msk_on_img(img_pth, msk_pth):
 def ststistics_for_type(arr : np.array, thresh:float):
     cnts = arr[arr > thresh]
     avg = np.mean(cnts)
-    return len(cnts) / len(arr), avg
+    avg_all = np.mean(arr)
+    return len(cnts) / len(arr), avg, avg_all
 def statistics_thresh_importance(df: pd.DataFrame):
     #names = ['ears_ng3', 'ears_ng3_bb', 'ears_ngb', 'ears_ngb_bb', 'ears_ngd', 'ears_ngd_bb',
     #         'eyes_ng3', 'eyes_ng3_bb', 'eyes_ngb', 'eyes_ngb_bb', 'eyes_ngd', 'eyes_ngd_bb',
@@ -712,12 +715,14 @@ def statistics_thresh_importance(df: pd.DataFrame):
              'mouth_ng3', 'mouth_ngb', 'mouth_ngd']
     res = []
     avgs = []
+    avgs_all = []
     for n in names:
         arr = np.array(df[n].tolist())
-        r, a =ststistics_for_type(arr, 1.0)
+        r, a, aa =ststistics_for_type(arr, 1.0)
         res.append(r)
         avgs.append(a)
-    return res, avgs
+        avgs_all.append(aa)
+    return res, avgs, avgs_all
 
 def ananlyze_importance_per_image_per_map_type(ears_norm_grade:float, eyes_norm_grade:float, mouth_norm_grade:float):
     grades_arr = np.array([ears_norm_grade, eyes_norm_grade, mouth_norm_grade])
@@ -823,6 +828,35 @@ def analyze_importance_of_segments(df: pd.DataFrame, map_type: str):
 
     return none_important, ears, eyes, mouth, ears_eyes, ears_mouth, eyes_mouth, ears_eyes_mouth, ears_avg, eyes_avg, mouth_avg
 
+def calc_map_type_quality(df:pandas.DataFrame, map_type:str):
+    ears_prob = np.array(df['ears_prob' + map_type].tolist())
+    eyes_prob = np.array(df['eyes_prob' + map_type].tolist())
+    mouth_prob = np.array(df['mouth_prob' + map_type].tolist())
+    ears_area = np.array(df['ears_area'].tolist())
+    eyes_area = np.array(df['eyes_area'].tolist())
+    mouth_area = np.array(df['mouth_area'].tolist())
+    total_prob = ears_prob+eyes_prob+mouth_prob
+    outer_prob = np.ones(total_prob.shape)-total_prob
+    total_area = ears_area+eyes_area+mouth_area
+    outer_area = np.ones(total_area.shape) - total_area
+    ng_ears = np.divide(ears_prob, ears_area)
+    ng_eyes = np.divide(eyes_prob, eyes_area)
+    ng_mouth = np.divide(mouth_prob, mouth_area)
+    ng = np.divide(total_prob, total_area)
+    ng_out = np.divide(outer_prob, outer_area)
+    out_mean = np.mean(ng_out)
+    out_median = np.median(ng_out)
+    ng_mean = np.mean(ng)
+    ng_median = np.median(ng)
+    ears_mean = np.mean(ng_ears)
+    eyes_mean = np.mean(ng_eyes)
+    mouth_mean = np.mean(ng_mouth)
+    ears_median = np.median(ng_ears)
+    eyes_median = np.median(ng_eyes)
+    mouth_median = np.median(ng_mouth)
+    res_mean =ears_mean+eyes_mean+mouth_mean-3*out_mean
+    res_median =ears_median+eyes_median+mouth_median-3*out_median
+    return res_mean, res_median
 
 
 if __name__ == "__main__":
@@ -830,24 +864,27 @@ if __name__ == "__main__":
     # msk_path = '/home/tali/cats_pain_proj/eyes_images/pain/cat_10_video_1.1.jpg'
     # plot_msk_on_img(img_path, msk_path)
 
-    df1 = pd.read_csv('/home/tali/trials/try_finetune_mask_224_pain_0.9.csv')
+    df1 = pd.read_csv('/home/tali/trials/try_finetune_mask_224_all_cam.csv')
     evalP = df1[df1["Valence"] == 1]
-    #resP , avgsP= statistics_thresh_importance(df1)
-    #evalNP = df1[df1["Valence"] == 0]
-    #resNP , avgsNP= statistics_thresh_importance(evalNP)
-    none_important, ears, eyes, mouth, ears_eyes, ears_mouth, eyes_mouth, ears_eyes_mouth,ears_avg, eyes_avg, mouth_avg = analyze_importance_of_segments(evalP, 'd')
+    resP , avgsP, avgsAllP= statistics_thresh_importance(evalP)
+    evalNP = df1[df1["Valence"] == 0]
+    resNP , avgsNP, avgsAllNP= statistics_thresh_importance(evalNP)
+    mean_3, med_3 = calc_map_type_quality(df1,'3')
+    mean_b, med_b = calc_map_type_quality(df1, 'b')
+    mean_d, med_d = calc_map_type_quality(df1, 'd')
+    #none_important, ears, eyes, mouth, ears_eyes, ears_mouth, eyes_mouth, ears_eyes_mouth,ears_avg, eyes_avg, mouth_avg = analyze_importance_of_segments(evalP, 'd')
 
     df = pd.read_csv("/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50.csv")
-    catsSegs = CatsSegs(alpha=0.7, df=df, out_sz=(224, 224), res_folder='/home/tali',
+    catsSegs = CatsSegs(alpha=0.8, df=df, out_sz=(224, 224), res_folder='/home/tali',
                         imgs_root='/home/tali/cats_pain_proj/face_images/masked_images',
                         msks_root='/home/tali/cats_pain_proj',
-                        heats_root='/home/tali/trials/cats_finetune_mask_seg_test50_1/')
+                        heats_root='/home/tali/trials/cats_finetune_mask_seg_test50_cam/')
     all_outs = catsSegs.analyze_all()
-    out_df_path = '/home/tali/trials/try_finetune_mask_224_pain_0.85.csv'
+    out_df_path = '/home/tali/trials/try_finetune_mask_224_high_new_b5.csv'
     catsSegs.create_res_df(all_outs, out_df_path)
 
-    df1 = pd.read_csv('/home/tali/trials/try_finetune_mask_224_pain_0.85.csv')
-    # evalP = df1[df1["Valence"] == 1]
+    df1 = pd.read_csv('/home/tali/trials/try_finetune_mask_high_new_b.csv')
+    evalP = df1[df1["Valence"] == 1]
     resP, avgsP = statistics_thresh_importance(df1)
     df1 = pd.read_csv('/home/tali/trials/try_finetune_mask_224_no_pain_high.csv')
 
