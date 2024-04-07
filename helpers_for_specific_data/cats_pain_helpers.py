@@ -123,7 +123,7 @@ def create_cats_heats_images(imgs_root:str, msks_root:str, heats_root:str, df:pd
     for img_full_path in imgs_list:
 
         face_msk_path = img_full_path.replace(imgs_root, msks_root)
-        img_full_path = img_full_path.replace('/home/tali/cats_pain_proj/face_images/masked_images', '/home/tali/cats_pain_proj/face_images')
+        img_full_path = img_full_path.replace('/home/tali/cats_pain_proj/face_images/masked_images', '/home/tali/cats_pain_proj/face_images/masked_images')
         if os.path.isfile(face_msk_path) is False:
             continue
         out_sz = (224, 224)
