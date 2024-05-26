@@ -91,7 +91,8 @@ def nest_tiny_s196_224(config):
 
   if config.get("nest"):
     nest.update(config.nest)
-  return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
+  return functools.partial(eval(config.classname), config=nest)
+  #return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
 
 
 @register
@@ -109,7 +110,8 @@ def nest_small_s196_224(config):
 
   if config.get("nest"):
     nest.update(config.nest)
-  return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
+  return functools.partial(eval(config.classname), config=nest)
+ # return functools.partial(getattr(sys.modules[__name__], config.classname), config=nest)
 
 
 @register
