@@ -91,30 +91,60 @@ def create_combined_maps(activation_map1:np.array, activation_map2:np.array, alp
 def save_heat_map(jet_map:np.array, out_path: str):
     cv2.imwrite(jet_map, out_path)
 
+
 def create_heatmaps(msk_path: str, img_path: str, activation3_map_path, activation2_map_path, out_sz: tuple[int, int], alpha:float, out_folder:str):
     im = cv2.imread(img_path)
-    msk = cv2.imread(msk_path)
-    a = np.load(activation3_map_path)
+    if msk_path == "":
+        msk = np.ones(im.shape)
+    else:
+        msk = cv2.imread(msk_path)
+    #a = np.load(activation3_map_path)
     activation_map3 = np.load(activation3_map_path)
-    activation_map2 = np.load(activation2_map_path)
+    #activation_map2 = np.load(activation2_map_path)
     am3 = create_masked_active_map(im, msk, activation_map3, out_sz)
-    am2 = create_masked_active_map(im, msk, activation_map2, out_sz)
-    both, dup =create_combined_maps(am3, am2, alpha)
+    #am2 = create_masked_active_map(im, msk, activation_map2, out_sz)
+    #both, dup =create_combined_maps(am3, am2, alpha)
     img = cv2.resize(im, out_sz, cv2.INTER_NEAREST)
-    norm_mapb, jet_mapb, super_imposed_mapb = create_heat_map(img, both)
-    norm_mapd, jet_mapd, super_imposed_mapd = create_heat_map(img, dup)
+    #norm_mapb, jet_mapb, super_imposed_mapb = create_heat_map(img, both)
+    #norm_mapd, jet_mapd, super_imposed_mapd = create_heat_map(img, dup)
     norm_map3, jet_map3, super_imposed_map3 = create_heat_map(img, am3)
-    norm_map2, jet_map2, super_imposed_map2 = create_heat_map(img, am2)
+    #norm_map2, jet_map2, super_imposed_map2 = create_heat_map(img, am2)
     fname_ = os.path.basename(img_path)
 
-    fname3 = "3" + fname_
-    fname2 = "2" + fname_
-    fname_both = "b" + fname_
-    fname_dup = "d" + fname_
-    cv2.imwrite( os.path.join(out_folder, fname_both),super_imposed_mapb)
-    cv2.imwrite( os.path.join(out_folder, fname_dup),super_imposed_mapd)
-    cv2.imwrite( os.path.join(out_folder, fname2),super_imposed_map2)
+    fname3 = "3_" + fname_
+    #fname2 = "2_" + fname_
+    #fname_both = "b_" + fname_
+    #fname_dup = "d_" + fname_
+    #cv2.imwrite( os.path.join(out_folder, fname_both),super_imposed_mapb)
+    #cv2.imwrite( os.path.join(out_folder, fname_dup),super_imposed_mapd)
+    #cv2.imwrite( os.path.join(out_folder, fname2),super_imposed_map2)
     cv2.imwrite( os.path.join(out_folder, fname3),super_imposed_map3)
+
+if __name__ == "__main__":
+    msk_path=""
+    csv_path="/home/tali/dogs_annika_proj/cropped_face/total_10.csv"
+    res_folder = "/home/tali/dogs_annika_proj/res_10_gc"
+    df=pd.read_csv(csv_path)
+    for index, row in df.iterrows():
+        id = row["id"]
+        #if id!=3:
+        #    continue
+        im_path = row["full path"]
+        label = row['label']
+        infered = row['Infered_Class']
+        if label=="P" and infered==1 or label=="N" and infered==0:
+            if label == "P":
+                ff = "pos"
+            else:
+                ff = "neg"
+            folder = os.path.join(res_folder, str(row["id"]), str(row["video"]), ff)
+            heats_folder = os.path.join(folder, "heats")
+            a, file_name = os.path.split(im_path)
+            name, extension = os.path.splitext(file_name)
+            am3_path = os.path.join(heats_folder,name + "_3.npy")
+            am2_path = os.path.join(heats_folder, name + "_2.npy")
+            out_folder = os.path.join(folder, "heats_plots")
+            create_heatmaps(msk_path, im_path, am3_path, am2_path, (224, 224), 0.7, out_folder)
 
 
 #msk_path="/home/tali/cats_pain_proj/face_images/masked_images/masks/no_pain/cat_1_video_1.4.jpg"
