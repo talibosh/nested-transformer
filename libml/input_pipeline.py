@@ -184,6 +184,7 @@ def get_dataset_fns(
       preprocess_fn = train_preprocess
       eval_preprocess_fn = functools.partial(
           eval_preprocess, mean=None, std=None)
+
   elif config.dataset.startswith("cats_pain"):
       dataset_builder = tfds.ImageFolder(config.main_dir)
       input_size = config.get("input_size", 224)
@@ -203,7 +204,7 @@ def get_dataset_fns(
           #std = tf.constant(
           #    preprocess.IMAGENET_DEFAULT_STD, dtype=tf.float32, shape=[1, 1, 3])
           basic_preprocess_fn = functools.partial(
-              preprocess.train_preprocess, input_size=input_size)
+              preprocess.train_preprocess_cats, input_size=input_size)
           preprocess_fn = preprocess.get_augment_preprocess(
               config.get(AUGMENT),
               colorjitter_params=config.get(COLORJITTER),
@@ -216,7 +217,39 @@ def get_dataset_fns(
       else:
           # Standard imagenet(stanford_dogs is a subset) preprocess with 0-1 normalization
           preprocess_fn = functools.partial(
-              preprocess.train_preprocess, input_size=input_size)
+              preprocess.train_preprocess_cats, input_size=input_size)
+          eval_preprocess_fn = functools.partial(
+              preprocess.eval_preprocess, input_size=input_size)
+
+  elif config.dataset.startswith("dogs_anika"):
+      dataset_builder = tfds.ImageFolder(config.main_dir)
+      input_size = config.get("input_size", 224)
+      train_split = 'train' #deterministic_data.get_read_instruction_for_host(
+          #"train", dataset_builder.info.splits["train"].num_examples)
+      test_split_name = "eval"
+      if use_custom_process:
+          # When using custom augmentation, we use mean/std normalization.
+          logging.info("Configure augmentation type %s", config.augment.type)
+          mean = tf.constant(
+              preprocess.IMAGENET_DEFAULT_MEAN, dtype=tf.float32, shape=[1, 1, 3])
+          std = tf.constant(
+              preprocess.IMAGENET_DEFAULT_STD, dtype=tf.float32, shape=[1, 1, 3])
+
+          basic_preprocess_fn = functools.partial(
+              preprocess.train_preprocess_cats, input_size=input_size)
+          preprocess_fn = preprocess.get_augment_preprocess(
+              config.get(AUGMENT),
+              colorjitter_params=config.get(COLORJITTER),
+              randerasing_params=config.get(RANDOM_ERASING),
+              mean=mean,
+              std=std,
+              basic_process=basic_preprocess_fn)
+          eval_preprocess_fn = functools.partial(
+              preprocess.eval_preprocess, mean=mean, std=std, input_size=input_size)
+      else:
+          # Standard imagenet(stanford_dogs is a subset) preprocess with 0-1 normalization
+          preprocess_fn = functools.partial(
+              preprocess.train_preprocess_cats, input_size=input_size)
           eval_preprocess_fn = functools.partial(
               preprocess.eval_preprocess, input_size=input_size)
 
@@ -323,7 +356,7 @@ def create_datasets(
 
   num_validation_examples = (
       dataset_builder.info.splits[test_split_name].num_examples)
-  if config.dataset.startswith('cats_pain'):
+  if config.dataset.startswith('cats_pain') or config.dataset.startswith('dogs_anika'):
       eval_split='eval'
   else:
       eval_split = deterministic_data.get_read_instruction_for_host(
