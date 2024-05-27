@@ -272,7 +272,8 @@ def eval_preprocess(features: Dict[str, tf.Tensor],
   image = features["image"]
   assert image.dtype == tf.uint8
   image = tf.cast(image, tf.float32) / 255.0
-  image = resize_small(image, size=int(256 / 224 * input_size))
+  #Simage = resize_small(image, size=int(256 / 224 * input_size))
+  image = resize_small(image, size=int(input_size))
   image = central_crop(image, size=input_size)
   if mean is not None:
     _check_valid_mean_std(mean, std)
