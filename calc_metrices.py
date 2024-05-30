@@ -50,6 +50,57 @@ def calc_metrices_from_df_dogs(df: pd.DataFrame):
     accuracy, precision, recall, f1_score=calc_metrices(converted_list, prediction)
     return accuracy, precision, recall, f1_score
 
+def calc_metrices_from_df_dogs_maj_call(res_df: pd.DataFrame):
+    TN_expec = 0
+    TP_expec = 0
+    FP_expec = 0
+    FN_expec = 0
+
+    TN_dis = 0
+    TP_dis = 0
+    FP_dis = 0
+    FN_dis = 0
+
+    videos = res_df["video"].to_list()
+    unique_videos = np.unique(np.array(videos))
+    for video in unique_videos:
+        df = res_df[res_df["video"] == video]
+        valence = (df["label"].tolist())[0]
+        prediction = df["Infered_Class"].tolist()
+        converted_list = ['P' if x == 1 else 'N' for x in prediction]
+        converted_list=np.array(converted_list)
+        correct = (np.where(converted_list == valence))[0].__len__()
+        wrong = converted_list.__len__()-correct
+        success = 0
+        if correct > wrong:
+            success = 1
+        if valence == "P":
+            if success:
+                TP_expec=TP_expec+1
+                TN_dis= TN_dis+1
+            else:
+                FN_expec=FN_expec+1
+                FP_dis = FP_dis+1
+        else: #"N"
+            if success:
+                TN_expec=TN_expec+1
+                TP_dis=TP_dis+1
+            else:
+                FP_expec=FP_expec+1
+                FN_dis=FN_dis+1
+    accuracy_expec = (TP_expec + TN_expec) / (TP_expec + TN_expec + FP_expec + FN_expec+ 1e-12)
+    precision_expec = TP_expec / (TP_expec + FP_expec + 1e-12)
+    recall_expec = TP_expec / (TP_expec + FN_expec + 1e-12)
+    f1_score_expec = 2 / (1 / (precision_expec + 1e-12) + 1 / (recall_expec + 1e-12))
+
+    accuracy_dis = (TP_dis + TN_dis) / (TP_dis + TN_dis + FP_dis + FN_dis + 1e-12)
+    precision_dis = TP_dis / (TP_dis + FP_dis + 1e-12)
+    recall_dis = TP_dis / (TP_dis + FN_dis + 1e-12)
+    f1_score_dis = 2 / (1 / (precision_dis + 1e-12) + 1 / (recall_dis + 1e-12))
+
+    return accuracy_expec, precision_expec, recall_expec, f1_score_expec,accuracy_dis, precision_dis, recall_dis, f1_score_dis,
+
+
 def calc_metrices_from_df_cats(df: pd.DataFrame):
     valence = df["Valence"].tolist()
     prediction = df["Infered_Class"].tolist()
@@ -79,7 +130,7 @@ def calc_metrices_by_id(df: pd.DataFrame):
 #combine_csvs('/home/tali/dogs_annika_proj/cropped_face/', '/home/tali/dogs_annika_proj/cropped_face/total_10.csv')
 #df_path= "/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_85.csv" #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
 df_path = "/home/tali/dogs_annika_proj/cropped_face/total_10.csv"
-accuracy, precision, recall, f1_score = calc_metrices_from_df_dogs(pd.read_csv(df_path))
+calc_metrices_from_df_dogs_maj_call(pd.read_csv(df_path))
 #print("accuracy: "+ str(accuracy) + " precision " + str(precision + " recall "+ str(recall) + " f1 "+str(f1_score)))
 new_dfb= calc_metrices_by_id(pd.read_csv(df_path))
 new_dfb.to_csv('/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50_by_id.csv')
