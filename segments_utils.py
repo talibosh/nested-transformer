@@ -139,29 +139,34 @@ class OneImgOneSeg:
 
     def analyze_img(self):
         osh = self.get_msk_for_img()
-        if osh == []:
-            return [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]
-        hm3 = self.get_one_heatmap_for_img(self.heatmap_paths[0])
-        hm2 = self.get_one_heatmap_for_img(self.heatmap_paths[1])
-        hm_both = self.create_both_heatmap(hm3, hm2, self.alpha)
-        hm_bothd = self.create_both_dup_heatmap(hm3, hm2)
-        relevant_heat3, relevant_bb_heat3, rszd_heat3 = osh.calc_relevant_heat(hm3)
-        prob_grade3, cnr3, area3 = osh.calc_grade_by_seg(relevant_heat3, rszd_heat3, osh.np_msk)
-        prob_grade3_bb, cnr3_bb, area3_bb = osh.calc_grade_by_seg(relevant_bb_heat3, rszd_heat3, osh.bb_msk)
-        relevant_heat2, relevant_bb_heat2, rszd_heat2 = osh.calc_relevant_heat(hm2)
-        prob_grade2, cnr2, area2 = osh.calc_grade_by_seg(relevant_heat2, rszd_heat2, osh.np_msk)
-        prob_grade2_bb, cnr2_bb, area2_bb = osh.calc_grade_by_seg(relevant_bb_heat2, rszd_heat2, osh.bb_msk)
-        relevant_heatb, relevant_bb_heatb, rszd_heatb = osh.calc_relevant_heat(hm_both)
-        prob_gradeb, cnrb, areab = osh.calc_grade_by_seg(relevant_heatb, rszd_heatb, osh.np_msk)
-        prob_gradeb_bb, cnrb_bb, areab_bb = osh.calc_grade_by_seg(relevant_bb_heatb, rszd_heatb, osh.bb_msk)
-        relevant_heatd, relevant_bb_heatd, rszd_heatd = osh.calc_relevant_heat(hm_bothd)
-        prob_graded, cnrd, aread = osh.calc_grade_by_seg(relevant_heatd, rszd_heatd, osh.np_msk)
-        prob_graded_bb, cnrd_bb, aread_bb = osh.calc_grade_by_seg(relevant_bb_heatd, rszd_heatd, osh.bb_msk)
-        return [prob_grade3, prob_grade2, prob_gradeb, prob_graded], [cnr3, cnr2, cnrb, cnrd], [area3, area2, areab,
-                                                                                                aread], \
-            [prob_grade3_bb, prob_grade2_bb, prob_gradeb_bb, prob_graded_bb], [cnr3_bb, cnr2_bb, cnrb_bb, cnrd_bb], \
-            [area3_bb, area2_bb, areab_bb, aread_bb]
+        probs = []
+        cnrs = []
+        areas = []
 
+        probs_bb = []
+        cnrs_bb = []
+        areas_bb = []
+        for hmp in self.heatmap_paths:
+            if osh == []:
+                probs.append(0)
+                cnrs.append(0)
+                areas.append(0)
+                probs_bb.append(0)
+                cnrs_bb.append(0)
+                areas_bb.append(0)
+            else:
+                hm = self.get_one_heatmap_for_img(hmp)
+                relevant_heat, relevant_bb_heat, rszd_heat = osh.calc_relevant_heat(hm)
+                prob_grade, cnr, area = osh.calc_grade_by_seg(relevant_heat, rszd_heat, osh.np_msk)
+                prob_grade_bb, cnr_bb, area_bb = osh.calc_grade_by_seg(relevant_bb_heat, rszd_heat, osh.bb_msk)
+                probs.append(prob_grade)
+                cnrs.append(cnr)
+                areas.append(area)
+                probs_bb.append(prob_grade_bb)
+                cnrs_bb.append(cnr_bb)
+                areas_bb.append(area_bb)
+
+        return probs, cnrs, areas, probs_bb, cnrs_bb, areas_bb
 
 class OneImgAllSegs:
     def __init__(self, alpha: float, img_path: str,
@@ -859,10 +864,22 @@ def calc_map_type_quality(df:pandas.DataFrame, map_type:str):
     return res_mean, res_median
 
 
+
 if __name__ == "__main__":
     # img_path = '/home/tali/cats_pain_proj/face_images/pain/cat_10_video_1.1.jpg'
     # msk_path = '/home/tali/cats_pain_proj/eyes_images/pain/cat_10_video_1.1.jpg'
     # plot_msk_on_img(img_path, msk_path)
+
+
+    #dogs
+    df = pd.read_csv("/home/tali/dogs_annika_proj/cropped_face/total_10.csv")
+    catsSegs = CatsSegs(alpha=0.8, df=df, out_sz=(224, 224), res_folder='/home/tali',
+                        imgs_root='/home/tali/dogs_annika_proj/data_set/',
+                        msks_root='/home/tali/dogs_annika_proj/data_set/',
+                        heats_root='/home/tali/dogs_annika_proj/res_10_gc/')
+    all_outs = catsSegs.analyze_all()
+    out_df_path = '/home/tali/dogs_annika_proj/res_10_gc/analyze.csv'
+    catsSegs.create_res_df(all_outs, out_df_path)
 
     df1 = pd.read_csv('/home/tali/trials/try_finetune_mask_224_all_cam.csv')
     evalP = df1[df1["Valence"] == 1]
