@@ -56,7 +56,7 @@ def get_config():
   config.learning_rate_schedule = "cosine"
   config.warmup_epochs = 0 #20
   config.weight_decay = 0.05
-  config.num_epochs = 10 #300
+  config.num_epochs = 5 #300
   config.num_train_steps = -1
   config.num_eval_steps = -1
 
