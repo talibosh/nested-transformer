@@ -37,12 +37,12 @@ def get_config():
     }]
   """
   config = ml_collections.ConfigDict()
-  config.model_name= "nest_tiny_s196_224"
-  config.per_device_batch_size = 32 #16
+  config.model_name = "nest_tiny_s196_224"
+  config.per_device_batch_size = 16#16
 
-  config.dataset = "dogs_anika"
-  config.main_dir = "/home/tali/dogs_annika_proj/cropped_face_masked/" #location of dataset info
-  config.df_file = "/home/tali/dogs_annika_proj/labels.csv"
+  config.dataset = "horse_pain"
+  config.main_dir = "/home/tali/horses/dataset/" #location of dataset info
+  config.df_file = "/home/tali/horses/dataset/dataset.csv"
 
   #config.mean =(0.37706992, 0.36137779, 0.31638868)
   #config.std =(0.18677819, 0.17849462, 0.17804539)
@@ -56,12 +56,12 @@ def get_config():
   config.learning_rate_schedule = "cosine"
   config.warmup_epochs = 0 #20
   config.weight_decay = 0.05
-  config.num_epochs = 40 #300
+  config.num_epochs = 25 #300
   config.num_train_steps = -1
   config.num_eval_steps = -1
 
   config.eval_pad_last_batch = True
-  config.log_loss_every_steps = 600 #3000
+  config.log_loss_every_steps = 100 #3000
   config.eval_every_steps = -1
   config.eval_per_epochs = 1
   config.checkpoint_every_steps = 6000 #5000
