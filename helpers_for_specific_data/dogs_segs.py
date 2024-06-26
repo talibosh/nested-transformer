@@ -33,11 +33,31 @@ class DogsSegs(AnimalSegs):
         ff = heat_maps_loc.replace('.jpg', '_' + heatmap_name + '.npy')
         return ff
 
-
+    def create_eval_df(self, res_df):
+        eval_df = pd.DataFrame()
+        videos = res_df["video"].to_list()
+        unique_videos = np.unique(np.array(videos))
+        for video in unique_videos:
+            df = res_df[res_df["video"] == video]
+            valence = (df["label"].tolist())[0]
+            prediction = df["Infered_Class"].tolist()
+            correct = sum(1 for x in prediction if x == valence)
+            wrong = prediction.__len__() - correct
+            if correct/(correct+wrong) < 0.6:
+                continue
+            success = 0
+            if correct > wrong:
+                success = 1
+            if success:
+                correct_df = df[df["Infered_Class"] == valence]
+                if valence == 'P':
+                    eval_df = pd.concat([eval_df, correct_df], axis=0, ignore_index=True)
+        return eval_df
 
     def analyze_all(self):
-        eval = self.df[self.df["label"] == self.df["Infered_Class"]]
-        eval = eval[eval["Prob"] > 0.5]
+        eval = self.create_eval_df(self.df)
+        #eval = self.df[self.df["label"] == self.df["Infered_Class"]]
+        #eval = eval[eval["Prob"] > 0.5]
         all_outs = {}
         i = 0
         for idx, row in eval.iterrows():
@@ -60,7 +80,7 @@ class DogsSegs(AnimalSegs):
                 msk_path = os.path.join(self.msks_root, id, valence, video_name,"masks", seg_name, filename)
                 msk_dict={"seg_name":seg_name, "mask_path":msk_path}
                 msks_dict_list.append(msk_dict)
-            outs=self.analyze_one_img(row["full path"], heats_paths, msks_dict_list)
+            outs=self.analyze_one_img(row["fullpath"], heats_paths, msks_dict_list)
             for idx in range(outs.__len__()):
                 outs[idx]["id"] = row["id"]
                 outs[idx]["video"] = row["video"]
@@ -107,19 +127,21 @@ if __name__ == "__main__":
 
 
     #dogs
-    df = pd.read_csv("/home/tali/dogs_annika_proj/cropped_face/total_10.csv")
+    df = pd.read_csv("/home/tali/dogs_annika_proj/cropped_face/total_25_mini_masked.csv")
     dogSegs = DogsSegs(alpha=0.8, df=df, out_sz=(28, 28), res_folder='/home/tali',
                        imgs_root='/home/tali/dogs_annika_proj/data_set/',
                        msks_root='/home/tali/dogs_annika_proj/data_set/',
-                       heats_root='/home/tali/dogs_annika_proj/res_10_gc/',
-                       segs_names = ["face", "ear", "eye"], segs_max_det=[1, 2, 2], heatmaps_names=["3"])
+                       heats_root='/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/',
+                       segs_names = ["face", "ear", "eye", "mouth"], segs_max_det=[1, 2, 2, 1], heatmaps_names=["cam", "grad_cam", "eigen_cam"])
 
     all_outs = dogSegs.analyze_all()
-    out_df_path = '/home/tali/dogs_annika_proj/res_10_gc/analyze.csv'
+    out_df_path = '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/analyze.csv'
     res_df = dogSegs.create_res_df(all_outs)
     res_df.to_csv(out_df_path)
-    analysis_df = dogSegs.analyze_df(res_df)
-    df_analysis_path = '/home/tali/dogs_annika_proj/res_10_gc/res_analysis.csv'
-    analysis_df.to_csv(df_analysis_path)
-    dogSegs.calc_map_type_quality(res_df, ['face'],'3')
+    #analysis_df = dogSegs.analyze_df(res_df)
+    #df_analysis_path = '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/res_analysis.csv'
+    #analysis_df.to_csv(df_analysis_path)
+    dogSegs.calc_map_type_quality(res_df, ['face'],'cam')
+    dogSegs.calc_map_type_quality(res_df, ['face'], 'grad_cam')
+    dogSegs.calc_map_type_quality(res_df, ['face'], 'eigen_cam')
 

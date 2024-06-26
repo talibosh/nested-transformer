@@ -102,7 +102,8 @@ class AnimalSegs:
             full_path.append(one_img_res[0]["full_path"])
             img_name.append(os.path.basename(one_img_res[0]["full_path"]))
             id.append(one_img_res[0]["id"])
-            video.append(one_img_res[0]["video"])
+            if "video" in one_img_res[0]:
+                video.append(one_img_res[0]["video"])
             valence.append(one_img_res[0]["valence"])
             infered_class.append(one_img_res[0]["Infered_Class"])
             for seg_idx in range(one_img_res.__len__()):  # go over segments in image
@@ -132,7 +133,8 @@ class AnimalSegs:
                     analyze_res_lists[list_name_ng_bb].append(prob_bb / (area_bb+1e-10))#avoid division by 0 if seg was not found
 
         analyze_res_lists["id"] = id
-        analyze_res_lists["video"] = video
+        if video != []:
+            analyze_res_lists["video"] = video
         analyze_res_lists["valence"] = valence
         analyze_res_lists["Infered_Class"] = infered_class
         analyze_res_lists["img_name"] = img_name
@@ -174,8 +176,9 @@ class AnimalSegs:
         seg_dict={}
         seg_list = []
         for hmn in self.heatmaps_names:
-            seg_list.append(np.array(df[seg_name + '_prob_' + hmn + addition].tolist()))
-            mean, std, norm_grades, norm_grades_stds = self.analyze_of_seg(seg_locs, seg_area,seg_list)
+            curr_list =np.array(df[seg_name + '_prob_' + hmn + addition].tolist())
+            seg_list.append(curr_list)
+            mean, std, norm_grades, norm_grades_stds = self.analyze_of_seg(seg_locs, seg_area,curr_list)
             #seg_list.append(np.array(df[seg_name + '_cnr_' + hmn + addition].tolist()))
             seg_dict[seg_name + '_prob_' + hmn + addition] = mean
             seg_dict[seg_name + '_ng_' + hmn + addition] = norm_grades
@@ -194,6 +197,7 @@ class AnimalSegs:
         total_outer_mean = 0
         total_median = 0
         total_outer_median = 0
+        res=dict()
         for seg_name in self.segs_names:
             if seg_name in segs_to_ignore:
                 continue
@@ -201,8 +205,12 @@ class AnimalSegs:
             seg_area = np.array(df[seg_name+"_area"].tolist())
             seg_relevant_locs = np.nonzero(seg_area)
             seg_ng = np.divide(seg_prob[seg_relevant_locs], seg_area[seg_relevant_locs])
+            good_ng = seg_ng[seg_ng > 1]
+            num_good_ng = good_ng.__len__()/seg_ng.__len__()
             seg_mean = np.mean(seg_ng)
             seg_median = np.median(seg_ng)
+            res[seg_name+"_mean"]=seg_mean
+            res[seg_name+"_median"] = seg_mean
             seg_outer_area = np.ones(seg_area[seg_relevant_locs].shape)-seg_area[seg_relevant_locs]
             seg_outer_prob = np.ones(seg_prob[seg_relevant_locs].shape)-seg_prob[seg_relevant_locs]
             seg_outer_ng = np.divide(seg_outer_prob, seg_outer_area)
@@ -215,7 +223,7 @@ class AnimalSegs:
 
         quality_mean = total_mean - total_outer_mean
         quality_median = total_median - total_outer_median
-        return quality_mean, quality_median
+        return quality_mean, quality_median, res
 
 if __name__ == "__main__":
     6
