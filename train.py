@@ -296,6 +296,52 @@ def evaluate(model: nn.Module,
   return eval_metrics
 
 def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
+    def copy_jpg_files(source_folder, destination_folder, prefix):
+        # Ensure destination folder exists
+        os.makedirs(destination_folder, exist_ok=True)
+
+        # Iterate over files in source folder
+        for filename in os.listdir(source_folder):
+            # Check if file is a JPG file
+            if filename.endswith('.jpg'):
+                # Create new filename with prefix
+                new_filename = prefix + filename
+                # Copy file to destination folder with new filename
+                shutil.copyfile(os.path.join(source_folder, filename),
+                                os.path.join(destination_folder, new_filename))
+
+    def copy_to_create_tfds(root_path: str, dest_folder: str, df: pd.DataFrame, ds_name:str):
+        if ds_name == 'anika_dogs_cropped':
+            for index, row in df.iterrows():
+                source_folder = os.path.join(root_path, str(row['video ']), 'crops', 'face')
+                prefix = str(row['video ']) + '_'
+                if row['video '] == 201 or row['video '] == 61685800 or row['video '] == 1435760:
+                    continue
+                copy_jpg_files(source_folder, os.path.join(dest_folder, row['label']), prefix)
+        if ds_name == 'horse_pain':
+            for index, row in df.iterrows():
+                os.makedirs(os.path.join(dest_folder, row['label']), exist_ok=True)
+                f= os.path.basename(row['fullpath'])
+                d = os.path.join(os.path.dirname(row['fullpath']),'masked_images')
+                shutil.copyfile(row['fullpath'], os.path.join(dest_folder, row['label'], row['file_name']))
+
+    def create_train_test_folders(root_path: str, dest_folder: str, ds_name: str, csv_path: str,
+                                  eval_ids: list[int]):
+        df = pd.read_csv(csv_path)
+        if ds_name == 'anika_dogs_cropped':
+            id_col = 'dog id'
+        if ds_name == "horse_pain":
+            id_col = 'id'
+        ids = df[id_col].tolist()
+        ids = np.unique(np.array(ids)).tolist()
+        train_ids = set(ids) - set(eval_ids)
+        train_df = df[df[id_col].isin(train_ids)]
+        eval_df = df[df[id_col].isin(eval_ids)]
+        copy_to_create_tfds(root_path, os.path.join(dest_folder, 'train'), train_df, ds_name)
+        copy_to_create_tfds(root_path, os.path.join(dest_folder, 'eval'), eval_df, ds_name)
+
+
+
     df = pd.read_csv(config.df_file)
     if config.dataset == "cats_pain":
         cat_ids=df['CatId'].tolist()
@@ -347,10 +393,53 @@ def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
             #config.eval_only = True
             #config.init_checkpoint = "./checkpoints/nest_cats/checkpoints-0/ckpt.3"
             #train_and_evaluate(config, cur_workdir) #eval
+    if config.dataset == "horse_pain":
+        ids = df['id'].tolist()
+        ids = np.unique(ids)
+        orig_dir = config.main_dir
+
+        for id in ids:
+            #if id<27:
+            #    continue
+            # get relevant rows
+            train_df = df[df["id"] != id]
+            eval_df = df[df["id"] == id]
+
+            # create temp dataset
+            temp_dir = '/home/tali/horses/tmp'
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+            create_train_test_folders(orig_dir, temp_dir, config.dataset, config.df_file,[id])
+            cur_workdir = os.path.join(workdir, str(id))
+            config.main_dir = temp_dir
+            print('***************start ' + str(id) + ' *************************\n')
+
+            train_and_evaluate(config, cur_workdir)
+            print('***************end ' + str(id) + ' *************************\n')
+            # delete temp
+            shutil.rmtree(temp_dir)
     if config.dataset == "dogs_anika":
         dogs_ids = df['dog id'].tolist()
         ids = np.unique(dogs_ids)
         orig_dir = config.main_dir
+        ###########patch#############
+        #train_ids = [1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24]
+        #eval_ids = [25,26,27,28,29,30]
+
+
+
+
+        #temp_dir = '/home/tali/dogs_annika_proj/tmp'
+        #shutil.rmtree(temp_dir, ignore_errors=True)
+        #train_df = df[df["dog id"].isin(train_ids)]
+        #eval_df = df[df["dog id"].isin(eval_ids)]
+        #create_train_test_folders(orig_dir, temp_dir, 'anika_dogs_cropped', config.df_file, eval_ids)
+        #cur_workdir = os.path.join(workdir, "lin40")
+        #config.main_dir = temp_dir
+
+        #train_and_evaluate(config, cur_workdir)
+
         for id in ids:
             if id<29:
                 continue
