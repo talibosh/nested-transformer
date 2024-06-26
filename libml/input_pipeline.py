@@ -221,7 +221,7 @@ def get_dataset_fns(
           eval_preprocess_fn = functools.partial(
               preprocess.eval_preprocess, input_size=input_size)
 
-  elif config.dataset.startswith("dogs_anika"):
+  elif config.dataset.startswith("dogs_anika") or config.dataset.startswith("horse_pain"):
       dataset_builder = tfds.ImageFolder(config.main_dir)
       input_size = config.get("input_size", 224)
       train_split = 'train' #deterministic_data.get_read_instruction_for_host(
@@ -356,7 +356,7 @@ def create_datasets(
 
   num_validation_examples = (
       dataset_builder.info.splits[test_split_name].num_examples)
-  if config.dataset.startswith('cats_pain') or config.dataset.startswith('dogs_anika'):
+  if config.dataset.startswith('cats_pain') or config.dataset.startswith('dogs_anika') or config.dataset.startswith('horse_pain'):
       eval_split='eval'
   else:
       eval_split = deterministic_data.get_read_instruction_for_host(
