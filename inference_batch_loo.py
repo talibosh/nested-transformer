@@ -45,15 +45,21 @@ class inference_and_gradCAT_one_id():
         for img_path in images_list:
             image = PIL.Image.open(img_path)
             image = self.__preprocess(image)
-            heatmap3, avg_heatmap3, heatmap2, avg_heatmap2 = model.create_heatmaps_and_avg_heatmaps(image)
+            #heatmap3, avg_heatmap3, heatmap2, avg_heatmap2 = model.create_heatmaps_and_avg_heatmaps(image)
+            hm_cam, hm_grad_cam, hm_eigen_cam,  = model.create_heatmaps_and_avg_heatmaps(image)
+
             fname = os.path.basename(img_path)
             out_path1 = os.path.join(out_dir, fname)
             os.makedirs(out_dir,exist_ok=True)
             #trials.plot_grid(img_path, out_path1, show, avg_heatmap3, avg_heatmap2)
             #trials.plot_heatmap(img_path, out_dir_heats_plots, show, heatmap3 , heatmap2 ,(224,224))
             ff = out_path1.replace(out_dir, out_dir_heats)
-            f3 = ff.replace('.jpg','_3.npy')
-            np.save(f3, heatmap3)
+            f_cam = ff.replace('.jpg','_cam.npy')
+            np.save(f_cam, hm_cam)
+            f_grad_cam = ff.replace('.jpg', '_grad_cam.npy')
+            np.save(f_grad_cam, hm_grad_cam)
+            f_eigen_cam = ff.replace('.jpg', '_eigen_cam.npy')
+            np.save(f_eigen_cam, hm_eigen_cam)
             #f2 = ff.replace('.jpg', '_2.npy')
             #np.save(f2, heatmap2)
             #head, tail = os.path.split(img_path)
@@ -83,15 +89,22 @@ class inference_and_gradCAT_loo():
         elif config.dataset == "dogs_anika":
             idName = "id"
             labelName = "label"
-            fullPathName = "full path"
+            fullPathName = "fullpath"
+        elif config.dataset == "horse_pain":
+            idName = "id"
+            labelName = "label"
+            fullPathName = "fullpath"
         ids = df[idName].tolist()
         unique_ids = np.unique(ids)
         classes = df[labelName].tolist()
         unique_classes = np.unique(classes)
         num_classes = unique_classes.__len__()
         new_df = pandas.DataFrame()
+        #model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, 'checkpoints-0'), self.config,
+        #                                  num_classes)
+
         for id in unique_ids:
-            #if id<15:
+            #if id<21:
             #    continue
             id_df = pandas.DataFrame()
             print('***************start ' + str(id) + ' *************************\n')
@@ -111,7 +124,7 @@ class inference_and_gradCAT_loo():
             updated_eval_cls0['Infered_Class'] = preds0
             updated_eval_cls0['Prob'] = probs0
             id_df = pandas.concat([id_df, updated_eval_cls1, updated_eval_cls0], axis=0)
-            csv_name = 'dog_'+str(id)+'.csv'
+            csv_name = str(id)+'.csv'
             id_df.to_csv(os.path.join(out_path,csv_name))
             new_df = pandas.concat([new_df, updated_eval_cls1, updated_eval_cls0], axis=0)
         return new_df
@@ -133,14 +146,28 @@ class inference_and_gradCAT_loo():
             infered_cls_name = "Infered_Class"
             dir_name_1 = 'no_pain'
             dir_name_0 = 'pain'
+            eval1_name='P'
+            eval0_name='N'
         elif config.dataset == "dogs_anika":
             idName = "id"
             labelName = "label"
-            fullPathName = "full path"
+            fullPathName = "fullpath"
             infered_cls_name = 'Infered_Class'
             dir_name_1 = 'pos'
             dir_name_0 = 'neg'
             has_video = True
+            eval1_name='P'
+            eval0_name='N'
+        elif config.dataset == "horse_pain":
+            idName = "id"
+            labelName = "label"
+            fullPathName = "fullpath"
+            infered_cls_name = 'Infered_Class'
+            dir_name_1 = 'Yes'
+            dir_name_0 = 'No'
+            has_video = False
+            eval1_name = 'Yes'
+            eval0_name = 'No'
         ids = df[idName].tolist()
         unique_ids = np.unique(ids)
         classes = df[labelName].tolist()
@@ -148,21 +175,29 @@ class inference_and_gradCAT_loo():
         unique_classes = np.unique(classes)
         num_classes = unique_classes.__len__()
         new_df = pandas.DataFrame()
+        model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, 'checkpoints-0'), self.config,
+                                          num_classes)
+        #model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, 'checkpoints-0'), self.config,
+        #                                  num_classes)
+
         for id in unique_ids:
-            if id<28:
-                continue
-            model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, str(id),'checkpoints-0'), self.config, num_classes)
+            #if id<25:
+            #    continue
+            #model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, str(id),'checkpoints-0'), self.config, num_classes)
             eval_df = df[df[idName] == id]
             if has_video is True:
                 videos_list = np.unique(eval_df['video'].to_list())
             else:
                 videos_list = [""]
             for v in videos_list:
-                eval_df_v = eval_df[eval_df["video"] == v]
-                eval_1 = eval_df_v[eval_df_v[labelName] == 'P']
+                if has_video is True:
+                    eval_df_v = eval_df[eval_df["video"] == v]
+                else:
+                    eval_df_v = eval_df
+                eval_1 = eval_df_v[eval_df_v[labelName] == eval1_name]
                 eval_1 = eval_1[eval_1[infered_cls_name] == 1]
 
-                eval_0 = eval_df_v[eval_df_v[labelName] == 'N']
+                eval_0 = eval_df_v[eval_df_v[labelName] == eval0_name]
                 eval_0 = eval_0[eval_0[infered_cls_name] == 0]
                 grad_cat = inference_and_gradCAT_one_id(self.config.mean, self.config.std)
                 dir0 = os.path.join(out_root, str(id),str(v), dir_name_0)
@@ -186,14 +221,27 @@ if __name__ == "__main__":
     #igi.inference_one_id_one_class(135, [img_path], model)
     #igi.gradCAT_one_id_one_class(135, [img_path], model, '/home/tali/test_imgnet', False)
 
-    from configs import cats_pain, anika_nest
-    in_csv_path = '/home/tali/dogs_annika_proj/cropped_face/dogs_cropped_frames.csv'
-    out_csv_path = "/home/tali/dogs_annika_proj/cropped_face/total_10.csv"
-    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/anika_dogs/'
+    from configs import cats_pain, anika_nest , horse_pain
+    import pandas as pd
+    #horses
+    #in_csv_path = '/home/tali/horses/dataset/dataset.csv'
+    #outdir = "/home/tali/horses/results/res25"
+    #infer_csv_path = os.path.join(outdir, "total_res_25.csv")
+    #chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/horse_pain/'
+    #config = horse_pain.get_config()
+    #loo_oper = inference_and_gradCAT_loo(chkpoints_root, config)
+    #loo_oper.create_infer_csv_loo(in_csv_path, infer_csv_path)
+    #loo_oper.run_grad_CAT_loo(infer_csv_path, outdir)
+
+    #dogs
+    #in_csv_path = '/home/tali/dogs_annika_proj/cropped_face/dogs_cropped_frames.csv'
+    in_csv_path = '/home/tali/dogs_annika_proj/data_set/dataset_masked.csv'
+    out_csv_path = "/home/tali/dogs_annika_proj/cropped_face/total_25_mini_masked.csv"
+    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/anika_dogs/lin25'
     config = anika_nest.get_config()
     loo_oper = inference_and_gradCAT_loo(chkpoints_root, config)
     #loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
-    loo_oper.run_grad_CAT_loo(out_csv_path, '/home/tali/dogs_annika_proj/res_10_gc/')
+    loo_oper.run_grad_CAT_loo(out_csv_path, '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/')
 
 
     #in_csv_path = "/home/tali/cats_pain_proj/face_images/masked_images/cats_masked.csv"#'/home/tali/cropped_cats_pain/cats.csv'

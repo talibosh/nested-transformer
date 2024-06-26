@@ -123,13 +123,14 @@ class NestForGradCAT():
         grad_func3 = jax.grad(self.do_post_grad_level_3)
         grads3 = grad_func3(x)
 
-        x, state2, agg_state2 = self.do_bef_grad_level_transformers_2(inputs)
-        grad_func2 = jax.grad(self.do_post_grad_level_2)
-        grads2 = grad_func2(x)
-        x, state1, agg_state1 = self.do_bef_grad_level_transformers_1(inputs)
-        grad_func1 = jax.grad(self.do_post_grad_level_1)
-        grads1 = grad_func1(x)
-        return grads3, grads2, grads1, state3, state2, state1, agg_state3, agg_state2, agg_state1
+        #x, state2, agg_state2 = self.do_bef_grad_level_transformers_2(inputs)
+        #grad_func2 = jax.grad(self.do_post_grad_level_2)
+        #grads2 = grad_func2(x)
+        #x, state1, agg_state1 = self.do_bef_grad_level_transformers_1(inputs)
+        #grad_func1 = jax.grad(self.do_post_grad_level_1)
+        #grads1 = grad_func1(x)
+        #return grads3, grads2, grads1, state3, state2, state1, agg_state3, agg_state2, agg_state1
+        return grads3, [], [], state3, [], [], agg_state3, [], []
 
     def calc_ftr_maps_and_grads(self, inputs):
         x = self.model_patch_embed(train=False).apply(self.variables, inputs, mutable=False)
@@ -150,18 +151,27 @@ class NestForGradCAT():
             grads_shaped = attn_utils.unblock_images(
                 grads, grid_size=grid_size, patch_size=patch_size)
         else:
-            grads_shaped = grads
+            grads_shaped = 1*grads
         pooled_ftrs = ftrs_shaped.squeeze().mean((0,1))
         pooled_grads = grads_shaped.squeeze().mean((0, 1))
         #pooled_grads = grads_shaped.squeeze()
         conv_output = ftrs_shaped.squeeze()
+        conv_output_for_eigen_cam = conv_output.reshape(conv_output.shape[0]*conv_output.shape[1],conv_output.shape[2])
+        conv_output_for_eigen_cam = conv_output_for_eigen_cam - \
+                               conv_output_for_eigen_cam.mean(axis=0)
+        U, S, VT = np.linalg.svd(conv_output_for_eigen_cam, full_matrices=True)
+        projection = conv_output_for_eigen_cam @ VT[0, :]
+        conv_output_eigen_cam = projection.reshape(conv_output.shape[0],conv_output.shape[1])
 
         for i in range(len(pooled_grads)):
-            #conv_output = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_ftrs[i]) #CAM
-            conv_output = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_grads[i])
+            conv_output_cam = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_ftrs[i]) #CAM
+            conv_output_grad_cam = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_grads[i])
 
         #conv_output = np.multiply(pooled_grads, conv_output)
-        heatmap = conv_output.mean(axis=-1)
+        conv_output_eigen_cam = np.float32(conv_output_eigen_cam)
+        heatmap_cam = conv_output_cam.mean(axis=-1)
+        heatmap_grad_cam = conv_output_grad_cam.mean(axis=-1)
+        heatmap_eigen_cam = conv_output_eigen_cam #con_output_eigen_cam.mean(axis=-1)
 
         #heatmap1 = flax.linen.relu(heatmap)# / heatmap.max()
         #heatmap1 = heatmap / heatmap.max()
@@ -174,23 +184,36 @@ class NestForGradCAT():
         #h11_ = flax.linen.avg_pool(heatmap3,
         #                           window_shape=(heatmap3.shape[1] // win_part, heatmap3.shape[2] // win_part),
         #                           strides=(heatmap3.shape[1] // win_part, heatmap3.shape[2] // win_part))
-        heatmap1=heatmap
-        heatmap1 = heatmap1.reshape(1, heatmap1.shape[0], heatmap1.shape[1], 1)
-        heatmap1_squares_avg = flax.linen.avg_pool(heatmap1,
-                                   window_shape=(heatmap1.shape[1] // win_part, heatmap1.shape[2] // win_part),
-                                   strides=(heatmap1.shape[1] // win_part, heatmap1.shape[2] // win_part))
 
-        hm1 = np.array(heatmap1)
-        hm1 = hm1.squeeze()
+        hm_cam = heatmap_cam.reshape(1, heatmap_cam.shape[0], heatmap_cam.shape[1], 1)
+        hm_grad_cam = heatmap_grad_cam.reshape(1, heatmap_grad_cam.shape[0], heatmap_grad_cam.shape[1], 1)
+        hm_eigen_cam = heatmap_eigen_cam.reshape(1, heatmap_eigen_cam.shape[0], heatmap_eigen_cam.shape[1], 1)
+        hm_cam = np.array(hm_cam).squeeze()
+        hm_grad_cam = np.array(hm_grad_cam).squeeze()
+        hm_eigen_cam = np.array(hm_eigen_cam).squeeze()
+        #heatmap1=heatmap
+        #heatmap1 = heatmap1.reshape(1, heatmap1.shape[0], heatmap1.shape[1], 1)
+        #heatmap1_squares_avg = flax.linen.avg_pool(heatmap1,
+        #                           window_shape=(heatmap1.shape[1] // win_part, heatmap1.shape[2] // win_part),
+        #                           strides=(heatmap1.shape[1] // win_part, heatmap1.shape[2] // win_part))
 
-        return hm1, heatmap1_squares_avg
+        #hm1 = np.array(heatmap1)
+        #hm1 = hm1.squeeze()
+
+        #return hm1, heatmap1_squares_avg
+        return hm_cam, hm_grad_cam, hm_eigen_cam
 
 
-    def create_heatmaps_and_avg_heatmaps(self, inputs):
+    def create_heatmaps_and_avg_heatmaps(self, inputs):# just hm actually
         grads3, grads2, grads1, state3, state2, state1, agg_state3, agg_state2, agg_state1 = self.calc_ftr_maps_and_grads(inputs)
-        heatmap3, avg_heatmap3 = self.do_grad_cat_level(state3['intermediates']['features_maps'][0], grads3,
+        #heatmap3, avg_heatmap3 = self.do_grad_cat_level(state3['intermediates']['features_maps'][0], grads3,
+        #                                   grid_size=(1, 1), patch_size=(14, 14), win_part=2)
+        #heatmap2, avg_heatmap2 = self.do_grad_cat_level(state2['intermediates']['features_maps'][0], grads2,
+        #                                    grid_size=(2, 2), patch_size=(14, 14), win_part=4)
+        #return heatmap3, avg_heatmap3, heatmap2, avg_heatmap2
+        hm_cam, hm_grad_cam, hm_eigen_cam = self.do_grad_cat_level(state3['intermediates']['features_maps'][0], grads3,
                                            grid_size=(1, 1), patch_size=(14, 14), win_part=2)
-        heatmap2, avg_heatmap2 = self.do_grad_cat_level(state2['intermediates']['features_maps'][0], grads2,
-                                            grid_size=(2, 2), patch_size=(14, 14), win_part=4)
-        return heatmap3, avg_heatmap3, heatmap2, avg_heatmap2
+
+        return hm_cam, hm_grad_cam, hm_eigen_cam
+        #return heatmap3, avg_heatmap3, [], []
 
