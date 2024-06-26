@@ -106,6 +106,12 @@ def calc_metrices_from_df_cats(df: pd.DataFrame):
     prediction = df["Infered_Class"].tolist()
     accuracy, precision, recall, f1_score=calc_metrices(valence, prediction)
     return accuracy, precision, recall, f1_score
+def calc_metrices_from_df_horses(df: pd.DataFrame):
+    valence = df["label"].tolist()
+    converted_list = [1 if x == 'Yes' else 0 for x in valence]
+    prediction = df["Infered_Class"].tolist()
+    accuracy, precision, recall, f1_score=calc_metrices(converted_list, prediction)
+    return accuracy, precision, recall, f1_score
 
 
 def calc_metrices_by_id(df: pd.DataFrame):
@@ -127,10 +133,15 @@ def calc_metrices_by_id(df: pd.DataFrame):
     return pd.DataFrame.from_dict(res_df)
 
 
+df_path = '/home/tali/horses/results/res25/total_res_25.csv'
+df = pd.read_csv(df_path)
+calc_metrices_from_df_horses(df)
 #combine_csvs('/home/tali/dogs_annika_proj/cropped_face/', '/home/tali/dogs_annika_proj/cropped_face/total_10.csv')
 #df_path= "/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_85.csv" #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
-df_path = "/home/tali/dogs_annika_proj/cropped_face/total_10.csv"
-calc_metrices_from_df_dogs_maj_call(pd.read_csv(df_path))
+df_path = "/home/tali/dogs_annika_proj/cropped_face/total_40_mini_masked.csv"
+df = pd.read_csv(df_path)
+df= df[df["id"].isin([25,26,27,28,29,30])]
+calc_metrices_from_df_dogs_maj_call(df)
 #print("accuracy: "+ str(accuracy) + " precision " + str(precision + " recall "+ str(recall) + " f1 "+str(f1_score)))
 new_dfb= calc_metrices_by_id(pd.read_csv(df_path))
 new_dfb.to_csv('/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50_by_id.csv')
