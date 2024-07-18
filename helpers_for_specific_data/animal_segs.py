@@ -197,20 +197,28 @@ class AnimalSegs:
         total_outer_mean = 0
         total_median = 0
         total_outer_median = 0
+        total_mean_prob_of_segs=0
+        total_mean_area_of_segs=0
+        num_of_used_segs = self.segs_names.__len__()
         res=dict()
         for seg_name in self.segs_names:
             if seg_name in segs_to_ignore:
+                num_of_used_segs=num_of_used_segs-1
                 continue
             seg_prob = np.array(df[seg_name+"_prob_" + map_type].tolist())
             seg_area = np.array(df[seg_name+"_area"].tolist())
             seg_relevant_locs = np.nonzero(seg_area)
             seg_ng = np.divide(seg_prob[seg_relevant_locs], seg_area[seg_relevant_locs])
+            seg_prob_mean = np.mean(seg_prob[seg_relevant_locs])
+            seg_area_mean = np.mean(seg_area[seg_relevant_locs])
             good_ng = seg_ng[seg_ng > 1]
             num_good_ng = good_ng.__len__()/seg_ng.__len__()
             seg_mean = np.mean(seg_ng)
             seg_median = np.median(seg_ng)
             res[seg_name+"_mean"]=seg_mean
             res[seg_name+"_median"] = seg_mean
+            res[seg_name+"_prob_mean"]=seg_prob_mean
+            res[seg_name + "_area_mean"] = seg_area_mean
             seg_outer_area = np.ones(seg_area[seg_relevant_locs].shape)-seg_area[seg_relevant_locs]
             seg_outer_prob = np.ones(seg_prob[seg_relevant_locs].shape)-seg_prob[seg_relevant_locs]
             seg_outer_ng = np.divide(seg_outer_prob, seg_outer_area)
@@ -220,10 +228,15 @@ class AnimalSegs:
             total_outer_mean = total_outer_mean + seg_outer_mean
             total_median = total_median + seg_median
             total_outer_median = total_outer_median + seg_outer_median
-
-        quality_mean = total_mean - total_outer_mean
+            total_mean_area_of_segs = total_mean_area_of_segs + seg_area_mean
+            total_mean_prob_of_segs = total_mean_prob_of_segs + seg_prob_mean
+        outer_mean_area = 1  - total_mean_area_of_segs
+        outer_mean_prob =1 -total_mean_prob_of_segs
+        outer_mean_ng = outer_mean_prob/outer_mean_area
+        qual_mean = total_mean_prob_of_segs/total_mean_area_of_segs
+        quality_mean = total_mean -num_of_used_segs*outer_mean_ng #total_outer_mean
         quality_median = total_median - total_outer_median
-        return quality_mean, quality_median, res
+        return quality_mean, quality_median, qual_mean,res
 
 if __name__ == "__main__":
     6
