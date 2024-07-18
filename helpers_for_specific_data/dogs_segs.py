@@ -50,8 +50,8 @@ class DogsSegs(AnimalSegs):
                 success = 1
             if success:
                 correct_df = df[df["Infered_Class"] == valence]
-                if valence == 'P':
-                    eval_df = pd.concat([eval_df, correct_df], axis=0, ignore_index=True)
+                #if valence == 'P':
+                eval_df = pd.concat([eval_df, correct_df], axis=0, ignore_index=True)
         return eval_df
 
     def analyze_all(self):
@@ -61,7 +61,6 @@ class DogsSegs(AnimalSegs):
         all_outs = {}
         i = 0
         for idx, row in eval.iterrows():
-
             id = str(row["id"])
             valence = str(row["label"])
             if valence == "P":
@@ -72,9 +71,16 @@ class DogsSegs(AnimalSegs):
             filename = os.path.basename(row["file_name"])
             heats_paths = []
             for heat_name in self.heatmaps_names:
-                heat_fname = filename.replace('.jpg', '_' + heat_name + '.npy')
-                heatmap_path = os.path.join(self.heats_root, id, video_name, valenceh, "heats",heat_fname)
-                heats_paths.append(heatmap_path)
+                heat_fname1 = filename.replace('.jpg', '_' + heat_name + '.npy')
+                heatmap_path1 = os.path.join(self.heats_root, id, video_name, valenceh, "heats",heat_fname1)
+                heat_fname2 = filename.replace('.jpg',  '.npy')
+                heatmap_path2 = os.path.join(self.heats_root,heat_name, id,valence, video_name, heat_fname2)
+                a1 = os.path.isfile(heatmap_path1)
+                a2 = os.path.isfile(heatmap_path2)
+                if a1:
+                    heats_paths.append(heatmap_path1)
+                if a2:
+                    heats_paths.append(heatmap_path2)
             msks_dict_list=[]
             for seg_name in self.segs_names:
                 msk_path = os.path.join(self.msks_root, id, valence, video_name,"masks", seg_name, filename)
@@ -120,13 +126,64 @@ class DogsSegs(AnimalSegs):
 
         return means, stds, means_norm_grades, norm_grades_stds
 
+def calc_qualities(inferred_csv_path:str, heats_root:str, out_df_path:str, heats_names:list[str]):
+    df = pd.read_csv(inferred_csv_path)
+    dogSegs = DogsSegs(alpha=0.8, df=df, out_sz=(28, 28), res_folder='/home/tali',
+                       imgs_root='/home/tali/dogs_annika_proj/data_set/',
+                       msks_root='/home/tali/dogs_annika_proj/data_set/',
+                       heats_root=heats_root,
+                       segs_names=["face", "ear", "eye", "mouth"], segs_max_det=[1, 2, 2, 1],
+                       heatmaps_names=heats_names)
+
+    all_outs = dogSegs.analyze_all()
+    res_df = dogSegs.create_res_df(all_outs)
+    res_df.to_csv(out_df_path)
+    # analysis_df = dogSegs.analyze_df(res_df)
+    # df_analysis_path = '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/res_analysis.csv'
+    # analysis_df.to_csv(df_analysis_path)
+    for hn in heats_names:
+        quality_mean, quality_median, res = dogSegs.calc_map_type_quality(res_df, ['face'], hn)
+        print(hn + " qual_mean:"+str(quality_mean)+ " qual_median:"+str(quality_median))
+        for key, value in res.items():
+            print(f"{key}: {value}")
+    #P
+    pdf=res_df[res_df['valence']=='P']
+    print('Analyze P')
+    for hn in heats_names:
+        quality_mean, quality_median, res = dogSegs.calc_map_type_quality(pdf, ['face'], hn)
+        print(hn + " qual_mean:"+str(quality_mean)+ " qual_median:"+str(quality_median))
+        for key, value in res.items():
+            print(f"{key}: {value}")
+    #N
+    ndf = res_df[res_df['valence'] == 'N']
+    print('Analyze N')
+    for hn in heats_names:
+        quality_mean, quality_median, res = dogSegs.calc_map_type_quality(ndf, ['face'], hn)
+        print(hn + " qual_mean:" + str(quality_mean) + " qual_median:" + str(quality_median))
+        for key, value in res.items():
+            print(f"{key}: {value}")
+
+
+
+
 if __name__ == "__main__":
     # img_path = '/home/tali/cats_pain_proj/face_images/pain/cat_10_video_1.1.jpg'
     # msk_path = '/home/tali/cats_pain_proj/eyes_images/pain/cat_10_video_1.1.jpg'
     # plot_msk_on_img(img_path, msk_path)
 
-
+    type = 'ViT-dino'
     #dogs
+    #ViT-dino
+    heats_names = ['cam', 'grad_cam', 'eigen_cam']
+    match type:
+        case 'ViT-dino':
+            inferred_csv_path = '/home/tali/dogs_annika_proj/pytorch_dino/inferred_df.csv'
+            heats_root = '/home/tali/dogs_annika_proj/pytorch_dino/maps/'
+            out_df_path = '/home/tali/dogs_annika_proj/pytorch_dino/analysis/analysis.csv'
+            calc_qualities(inferred_csv_path, heats_root, out_df_path, heats_names)
+
+    #resnet
+    #NesT
     df = pd.read_csv("/home/tali/dogs_annika_proj/cropped_face/total_25_mini_masked.csv")
     dogSegs = DogsSegs(alpha=0.8, df=df, out_sz=(28, 28), res_folder='/home/tali',
                        imgs_root='/home/tali/dogs_annika_proj/data_set/',
