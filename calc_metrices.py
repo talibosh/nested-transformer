@@ -102,7 +102,7 @@ def calc_metrices_from_df_dogs_maj_call(res_df: pd.DataFrame):
 
 
 def calc_metrices_from_df_cats(df: pd.DataFrame):
-    valence = df["Valence"].tolist()
+    valence = df["label"].tolist()
     prediction = df["Infered_Class"].tolist()
     accuracy, precision, recall, f1_score=calc_metrices(valence, prediction)
     return accuracy, precision, recall, f1_score
@@ -132,6 +132,12 @@ def calc_metrices_by_id(df: pd.DataFrame):
     res_df={'id':unique_ids.tolist(), 'accuracy':accuracy, 'precision':precision, 'recall':recall, 'f1_score':f1_score}
     return pd.DataFrame.from_dict(res_df)
 
+
+
+#cats
+df_path = '/home/tali/cats_pain_proj/restiny25/cats_finetune_mask_25_high_lr.csv'
+df = pd.read_csv(df_path)
+calc_metrices_from_df_cats(df)
 #horses
 #df_path = '/home/tali/horses/results/res25/total_res_25.csv'
 #df = pd.read_csv(df_path)
