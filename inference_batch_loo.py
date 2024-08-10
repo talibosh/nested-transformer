@@ -46,7 +46,7 @@ class inference_and_gradCAT_one_id():
             image = PIL.Image.open(img_path)
             image = self.__preprocess(image)
             #heatmap3, avg_heatmap3, heatmap2, avg_heatmap2 = model.create_heatmaps_and_avg_heatmaps(image)
-            hm_cam, hm_grad_cam, hm_eigen_cam,  = model.create_heatmaps_and_avg_heatmaps(image)
+            hm_cam, hm_grad_cam, hm_xgrad_cam,hm_grad_cam_plusplus,hm_power_grad_cam  = model.create_heatmaps_and_avg_heatmaps(image)
 
             fname = os.path.basename(img_path)
             out_path1 = os.path.join(out_dir, fname)
@@ -58,8 +58,12 @@ class inference_and_gradCAT_one_id():
             np.save(f_cam, hm_cam)
             f_grad_cam = ff.replace('.jpg', '_grad_cam.npy')
             np.save(f_grad_cam, hm_grad_cam)
-            f_eigen_cam = ff.replace('.jpg', '_eigen_cam.npy')
-            np.save(f_eigen_cam, hm_eigen_cam)
+            f_xgrad_cam = ff.replace('.jpg', '_xgrad_cam.npy')
+            np.save(f_xgrad_cam, hm_xgrad_cam)
+            f_grad_cam_plusplus = ff.replace('.jpg', '_grad_cam_plusplus.npy')
+            np.save(f_grad_cam_plusplus, hm_grad_cam_plusplus)
+            f_power_grad_cam = ff.replace('.jpg', '_power_grad_cam.npy')
+            np.save(f_power_grad_cam, hm_power_grad_cam)
             #f2 = ff.replace('.jpg', '_2.npy')
             #np.save(f2, heatmap2)
             #head, tail = os.path.split(img_path)
@@ -83,9 +87,9 @@ class inference_and_gradCAT_loo():
         idName=""
         labelName=""
         if config.dataset == "cats_pain":
-            idName = "CatId"
-            labelName = "Valence"
-            fullPathName="FullPath"
+            idName = "id"
+            labelName = "label"
+            fullPathName="fullpath"
         elif config.dataset == "dogs_anika":
             idName = "id"
             labelName = "label"
@@ -140,14 +144,14 @@ class inference_and_gradCAT_loo():
         infered_cls_name = ""
         has_video = False
         if config.dataset == "cats_pain":
-            idName = "CatId"
-            labelName = "Valence"
-            fullPathName = "FullPath"
+            idName = "id"
+            labelName = "label"
+            fullPathName = "fullpath"
             infered_cls_name = "Infered_Class"
-            dir_name_1 = 'no_pain'
-            dir_name_0 = 'pain'
-            eval1_name='P'
-            eval0_name='N'
+            dir_name_1 = 'pain'
+            dir_name_0 = 'no_pain'
+            eval1_name=1
+            eval0_name=0
         elif config.dataset == "dogs_anika":
             idName = "id"
             labelName = "label"
@@ -158,6 +162,7 @@ class inference_and_gradCAT_loo():
             has_video = True
             eval1_name='P'
             eval0_name='N'
+
         elif config.dataset == "horse_pain":
             idName = "id"
             labelName = "label"
@@ -175,15 +180,18 @@ class inference_and_gradCAT_loo():
         unique_classes = np.unique(classes)
         num_classes = unique_classes.__len__()
         new_df = pandas.DataFrame()
-        model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, 'checkpoints-0'), self.config,
+        if config.dataset == "dogs_anika":
+            model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, 'checkpoints-0'), self.config,
                                           num_classes)
         #model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, 'checkpoints-0'), self.config,
         #                                  num_classes)
 
         for id in unique_ids:
-            #if id<25:
+            #if id<27:
             #    continue
-            #model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, str(id),'checkpoints-0'), self.config, num_classes)
+            print('************************************' + str(id)+'****************************************')
+            if not(config.dataset == "dogs_anika"):
+                model = nstGradCat.NestForGradCAT(os.path.join(self.chk_points_root, str(id),'checkpoints-0'), self.config, num_classes)
             eval_df = df[df[idName] == id]
             if has_video is True:
                 videos_list = np.unique(eval_df['video'].to_list())
@@ -221,7 +229,7 @@ if __name__ == "__main__":
     #igi.inference_one_id_one_class(135, [img_path], model)
     #igi.gradCAT_one_id_one_class(135, [img_path], model, '/home/tali/test_imgnet', False)
 
-    from configs import cats_pain, anika_nest , horse_pain
+    from configs import cats_pain_tiny, anika_nest , horse_pain
     import pandas as pd
     #horses
     #in_csv_path = '/home/tali/horses/dataset/dataset.csv'
@@ -234,7 +242,7 @@ if __name__ == "__main__":
     #loo_oper.run_grad_CAT_loo(infer_csv_path, outdir)
 
     #dogs
-    #in_csv_path = '/home/tali/dogs_annika_proj/cropped_face/dogs_cropped_frames.csv'
+    in_csv_path = '/home/tali/dogs_annika_proj/cropped_face/dogs_cropped_frames.csv'
     in_csv_path = '/home/tali/dogs_annika_proj/data_set/dataset_masked.csv'
     out_csv_path = "/home/tali/dogs_annika_proj/cropped_face/total_25_mini_masked.csv"
     chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/anika_dogs/lin25'
@@ -243,15 +251,15 @@ if __name__ == "__main__":
     #loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
     loo_oper.run_grad_CAT_loo(out_csv_path, '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/')
 
-
-    #in_csv_path = "/home/tali/cats_pain_proj/face_images/masked_images/cats_masked.csv"#'/home/tali/cropped_cats_pain/cats.csv'
-    #out_csv_path = "/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_85.csv"
+#cats
+    in_csv_path = "/home/tali/cats_pain_proj/face_images/masked_images/cats_masked__new_headers.csv"#'/home/tali/cropped_cats_pain/cats.csv'
+    out_csv_path = '/home/tali/cats_pain_proj/restiny25/cats_finetune_mask_25_high_lr.csv'
     #csv_path ="/home/tali/cats_pain_proj/face_images/masked_images/cats_finetune_mask_infered50.csv" #'/home/tali/cropped_cats_pain/cats_norm1_infered.csv'
-    #chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/cats_pain/'
-    #config = cats_pain.get_config()
-    #loo_oper = inference_and_gradCAT_loo(chkpoints_root, config)
+    chkpoints_root = '/home/tali/mappingPjt/nst12/checkpoints/cats_pain_tiny/'#/home/tali/mappingPjt/nst12/checkpoints/cats_pain/'
+    config = cats_pain_tiny.get_config()
+    loo_oper = inference_and_gradCAT_loo(chkpoints_root, config)
     #loo_oper.create_infer_csv_loo(in_csv_path, out_csv_path)
-    #loo_oper.run_grad_CAT_loo(csv_path, '/home/tali/trials/cats_finetune_mask_seg_test50_cam')
+    loo_oper.run_grad_CAT_loo(out_csv_path, '/home/tali/cats_pain_proj/restiny25')
 
 
 

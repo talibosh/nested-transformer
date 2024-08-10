@@ -152,26 +152,55 @@ class NestForGradCAT():
                 grads, grid_size=grid_size, patch_size=patch_size)
         else:
             grads_shaped = 1*grads
-        pooled_ftrs = ftrs_shaped.squeeze().mean((0,1))
-        pooled_grads = grads_shaped.squeeze().mean((0, 1))
+        pooled_ftrs = ftrs_shaped.squeeze().mean((0,1))#384
+        pooled_grads = grads_shaped.squeeze().mean((0, 1))#384
+         # 384
+        grads_power_2 = grads_shaped.squeeze() ** 2
+        grads_power_3 = grads_power_2 * grads_shaped.squeeze()
+        pooled_grads_power_grad_cam = grads_power_3.mean((0, 1))
         #pooled_grads = grads_shaped.squeeze()
         conv_output = ftrs_shaped.squeeze()
-        conv_output_for_eigen_cam = conv_output.reshape(conv_output.shape[0]*conv_output.shape[1],conv_output.shape[2])
-        conv_output_for_eigen_cam = conv_output_for_eigen_cam - \
-                               conv_output_for_eigen_cam.mean(axis=0)
-        U, S, VT = np.linalg.svd(conv_output_for_eigen_cam, full_matrices=True)
-        projection = conv_output_for_eigen_cam @ VT[0, :]
-        conv_output_eigen_cam = projection.reshape(conv_output.shape[0],conv_output.shape[1])
+        #conv_output_for_eigen_cam = conv_output.reshape(conv_output.shape[0]*conv_output.shape[1],conv_output.shape[2])
+        #conv_output_for_eigen_cam = conv_output_for_eigen_cam - \
+        #                       conv_output_for_eigen_cam.mean(axis=0)
+        #U, S, VT = np.linalg.svd(conv_output_for_eigen_cam, full_matrices=True)
+        #projection = conv_output_for_eigen_cam @ VT[0, :]
+        #conv_output_eigen_cam = projection.reshape(conv_output.shape[0],conv_output.shape[1])
+        #xgradcam
+        activations_sum =ftrs_shaped.squeeze().sum((0,1))
+        activations_norm = np.divide(ftrs_shaped.squeeze(),activations_sum+10e-7)
+        weights_xgcam = activations_norm*grads_shaped.squeeze()
+        weights_xgcam =weights_xgcam.sum(axis=(0,1))
+        #gradcam++
+
+        # Equation 19 in https://arxiv.org/abs/1710.11063
+        sum_activations = np.sum(ftrs_shaped.squeeze(), axis=(0, 1))
+        eps = 0.000001
+        aij = grads_power_2 / (2 * grads_power_2 +
+                               sum_activations* grads_power_3 + eps)
+        # Now bring back the ReLU from eq.7 in the paper,
+        # And zero out aijs where the activations are 0
+        aij = np.where(grads_shaped.squeeze() != 0, aij, 0)
+
+        gcpp_weights = np.maximum(grads_shaped.squeeze(), 0) * aij
+        gcpp_weights = np.sum(gcpp_weights, axis=(0, 1))
+        ####
 
         for i in range(len(pooled_grads)):
             conv_output_cam = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_ftrs[i]) #CAM
             conv_output_grad_cam = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_grads[i])
+            conv_output_xgrad_cam = conv_output.at[:, :, i].set(conv_output[:, :, i] * weights_xgcam[i])
+            conv_output_grad_cam_plusplus = conv_output.at[:, :, i].set(conv_output[:, :, i] * gcpp_weights[i])
+            conv_output_power_grad_cam = conv_output.at[:, :, i].set(conv_output[:, :, i] * pooled_grads_power_grad_cam[i])
 
         #conv_output = np.multiply(pooled_grads, conv_output)
-        conv_output_eigen_cam = np.float32(conv_output_eigen_cam)
+        #conv_output_eigen_cam = np.float32(conv_output_eigen_cam)
         heatmap_cam = conv_output_cam.mean(axis=-1)
         heatmap_grad_cam = conv_output_grad_cam.mean(axis=-1)
-        heatmap_eigen_cam = conv_output_eigen_cam #con_output_eigen_cam.mean(axis=-1)
+        heatmap_xgrad_cam = conv_output_xgrad_cam.mean(axis=-1)
+        heatmap_grad_cam_plusplus = conv_output_grad_cam_plusplus.mean(axis=-1)
+        heatmap_power_grad_cam = conv_output_power_grad_cam.mean(axis=-1)
+        #heatmap_eigen_cam = conv_output_eigen_cam #con_output_eigen_cam.mean(axis=-1)
 
         #heatmap1 = flax.linen.relu(heatmap)# / heatmap.max()
         #heatmap1 = heatmap / heatmap.max()
@@ -187,10 +216,17 @@ class NestForGradCAT():
 
         hm_cam = heatmap_cam.reshape(1, heatmap_cam.shape[0], heatmap_cam.shape[1], 1)
         hm_grad_cam = heatmap_grad_cam.reshape(1, heatmap_grad_cam.shape[0], heatmap_grad_cam.shape[1], 1)
-        hm_eigen_cam = heatmap_eigen_cam.reshape(1, heatmap_eigen_cam.shape[0], heatmap_eigen_cam.shape[1], 1)
+        hm_xgrad_cam = heatmap_xgrad_cam.reshape(1, heatmap_xgrad_cam.shape[0], heatmap_xgrad_cam.shape[1], 1)
+        hm_grad_cam_plusplus = heatmap_grad_cam_plusplus.reshape(1, heatmap_grad_cam_plusplus.shape[0], heatmap_grad_cam_plusplus.shape[1], 1)
+        hm_power_grad_cam = heatmap_power_grad_cam.reshape(1, heatmap_power_grad_cam.shape[0], heatmap_power_grad_cam.shape[1], 1)
+
+        #hm_eigen_cam = heatmap_eigen_cam.reshape(1, heatmap_eigen_cam.shape[0], heatmap_eigen_cam.shape[1], 1)
         hm_cam = np.array(hm_cam).squeeze()
         hm_grad_cam = np.array(hm_grad_cam).squeeze()
-        hm_eigen_cam = np.array(hm_eigen_cam).squeeze()
+        hm_xgrad_cam = np.array(hm_xgrad_cam).squeeze()
+        hm_grad_cam_plusplus = np.array(hm_grad_cam_plusplus).squeeze()
+        hm_power_grad_cam = np.array(hm_power_grad_cam).squeeze()
+        #hm_eigen_cam = np.array(hm_eigen_cam).squeeze()
         #heatmap1=heatmap
         #heatmap1 = heatmap1.reshape(1, heatmap1.shape[0], heatmap1.shape[1], 1)
         #heatmap1_squares_avg = flax.linen.avg_pool(heatmap1,
@@ -201,7 +237,7 @@ class NestForGradCAT():
         #hm1 = hm1.squeeze()
 
         #return hm1, heatmap1_squares_avg
-        return hm_cam, hm_grad_cam, hm_eigen_cam
+        return hm_cam, hm_grad_cam, hm_xgrad_cam,hm_grad_cam_plusplus,hm_power_grad_cam
 
 
     def create_heatmaps_and_avg_heatmaps(self, inputs):# just hm actually
@@ -211,9 +247,9 @@ class NestForGradCAT():
         #heatmap2, avg_heatmap2 = self.do_grad_cat_level(state2['intermediates']['features_maps'][0], grads2,
         #                                    grid_size=(2, 2), patch_size=(14, 14), win_part=4)
         #return heatmap3, avg_heatmap3, heatmap2, avg_heatmap2
-        hm_cam, hm_grad_cam, hm_eigen_cam = self.do_grad_cat_level(state3['intermediates']['features_maps'][0], grads3,
+        hm_cam, hm_grad_cam, hm_xgrad_cam,hm_grad_cam_plusplus,hm_power_grad_cam = self.do_grad_cat_level(state3['intermediates']['features_maps'][0], grads3,
                                            grid_size=(1, 1), patch_size=(14, 14), win_part=2)
 
-        return hm_cam, hm_grad_cam, hm_eigen_cam
+        return hm_cam, hm_grad_cam, hm_xgrad_cam,hm_grad_cam_plusplus,hm_power_grad_cam
         #return heatmap3, avg_heatmap3, [], []
 

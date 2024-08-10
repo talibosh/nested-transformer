@@ -79,7 +79,7 @@ def create_heat_map(img:np.array, activation_map:np.array):
     single_map = 255*norm_map
     single_map = single_map.astype(np.uint8)
     jet_map = cv2.applyColorMap(single_map, cv2.COLORMAP_JET)
-    super_imposed_map = img*0.7 + 0.4*jet_map
+    super_imposed_map = img*0.8 + 0.3*jet_map
     super_imposed_map = cv2.resize(super_imposed_map, (224,224), cv2.INTER_LINEAR)
     return norm_map, jet_map, super_imposed_map
 
@@ -122,14 +122,14 @@ def create_heatmaps(msk_path: str, img_path: str, activation3_map_path, activati
 
 if __name__ == "__main__":
     msk_path=""
-    csv_path="/home/tali/dogs_annika_proj/cropped_face/total_10.csv"
-    res_folder = "/home/tali/dogs_annika_proj/res_10_gc"
+    csv_path='/home/tali/dogs_annika_proj/cropped_face/total_25_mini_masked.csv'
+    res_folder = "/home/tali/dogs_annika_proj/res_25_gc_mini_masked/"
     df=pd.read_csv(csv_path)
     for index, row in df.iterrows():
         id = row["id"]
         #if id!=3:
         #    continue
-        im_path = row["full path"]
+        im_path = row["fullpath"]
         label = row['label']
         infered = row['Infered_Class']
         if label=="P" and infered==1 or label=="N" and infered==0:
@@ -144,6 +144,9 @@ if __name__ == "__main__":
             am3_path = os.path.join(heats_folder,name + "_3.npy")
             am2_path = os.path.join(heats_folder, name + "_2.npy")
             out_folder = os.path.join(folder, "heats_plots")
+            msk_path = im_path.replace("masked_images", "masks/face")
+            if os.path.exists(msk_path) == False:
+                msk_path = ""
             create_heatmaps(msk_path, im_path, am3_path, am2_path, (224, 224), 0.7, out_folder)
 
 

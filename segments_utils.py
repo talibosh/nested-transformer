@@ -11,7 +11,7 @@ import cv2
 
 
 class OneSegOneHeatmapCalc:
-    def __init__(self, msk_path: str, num_of_shows: int,face_msk_path:str, outSz: tuple[int, int]):
+    def __init__(self, msk_path: str, num_of_shows: int,face_msk_path:str, outSz: tuple[int, int],manip_type:str):
         if os.path.isfile(msk_path) == False or os.path.isfile(face_msk_path) == False:
             self.orig_msk = []
             return
@@ -21,6 +21,7 @@ class OneSegOneHeatmapCalc:
         self.outSz = outSz
         self.rszd_msk, self.np_msk = self.rszNconvet2NP(self.orig_msk, outSz)
         self.rszd_face_msk, self.np_face_msk = self.rszNconvet2NP(self.orig_face_msk, outSz)
+        self.manipulation_type = manip_type
         # find bb
         x1, y1, w, h = cv2.boundingRect(self.np_msk)
         x2 = x1 + w
@@ -56,10 +57,17 @@ class OneSegOneHeatmapCalc:
         #rszd_heat = (rszd_heat - rszd_heat.min()) / (rszd_heat.max() - rszd_heat.min())
         heatmap[heatmap<0]=0
         face_heat=heatmap *self.np_face_msk
-        relevant_heat = heatmap * self.np_msk*self.np_face_msk
-        relevant_heat = relevant_heat / np.sum(face_heat)
+
+        if self.manipulation_type == 'power':
+            face_heat = np.power(face_heat,5)
+        if self.manipulation_type == 'exp':
+            face_heat = np.exp(face_heat*2)
+
+        relevant_heat = face_heat * self.np_msk
+
+        relevant_heat = relevant_heat / (np.sum(face_heat)+1e-15)
         relevant_bb_heat = heatmap * self.bb_msk*self.np_face_msk
-        relevant_bb_heat = relevant_bb_heat / np.sum(face_heat)
+        relevant_bb_heat = relevant_bb_heat / (np.sum(face_heat)+1e-15)
         return relevant_heat, relevant_bb_heat, heatmap
 
     def calc_grade_by_seg(self, relevant_heat: np.array, rszd_heat: np.array, msk: np.array):
@@ -67,7 +75,7 @@ class OneSegOneHeatmapCalc:
         mean_relevant_heat = np.mean(relevant_heat)
         var_relevant_heat = np.var(relevant_heat)
         tmp=rszd_heat*self.np_face_msk
-        rest_img_map = tmp/np.sum(tmp) - relevant_heat
+        rest_img_map = tmp/(np.sum(tmp)+10e-7) - relevant_heat
         mean_rest_of_img = np.mean(rest_img_map)
         var_rest_of_img = np.var(rest_img_map)
         cnr = np.abs(mean_relevant_heat - mean_rest_of_img) / np.sqrt(var_relevant_heat + var_rest_of_img)
@@ -95,7 +103,7 @@ class OneSegOneHeatmapCalc:
 class OneImgOneSeg:
 
     def __init__(self, alpha: float, msk_path: str,face_msk_path:str, img_path: str, heatmap_paths: list[str], max_segs_num: int,
-                 out_sz: tuple[int, int]):
+                 out_sz: tuple[int, int], manip_type:str):
         self.msk_path = msk_path
         self.face_msk_path =face_msk_path
         self.img_path = img_path
@@ -103,6 +111,8 @@ class OneImgOneSeg:
         self.out_sz = out_sz
         self.max_segs_num = max_segs_num
         self.alpha = alpha
+        self.manip_type = manip_type
+        self.save_heats_images_root = heatmap_paths
 
     def create_both_heatmap(self, hm3: np.array, hm2: np.array, alpha: float):
         assert (hm3.shape == hm2.shape)
@@ -119,9 +129,30 @@ class OneImgOneSeg:
         hmb = hmb / np.sum(hmb)
         return hmb
 
+    def overlay_heatmap_img(self, img:np.array, heatmap:np.array):
+        norm_map = (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap)+1e-15)
+        norm_map=cv2.resize(norm_map,[img.shape[1],img.shape[0]],cv2.INTER_CUBIC)
+        single_map = 255 * norm_map
+        single_map = single_map.astype(np.uint8)
+        jet_map = cv2.applyColorMap(single_map, cv2.COLORMAP_JET)
+        jet_np_heatmap = np.float32(jet_map) / 255
+        #jet_np_heatmap=cv2.resize(jet_np_heatmap,img.shape())
+        fimg = np.float32(img)
+        fimg=fimg/255
+        if np.max(fimg) > 1:
+            raise Exception(
+                "The input image should np.float32 in the range [0, 1]")
+
+        cam = 0.4 * jet_np_heatmap + 0.7 * fimg
+        super_imposed_map = cam / np.max(cam)
+        return np.uint8(255 * super_imposed_map)
+        #super_imposed_map = img * 0.7 + 0.3 * jet_map
+        #super_imposed_map = cv2.resize(super_imposed_map, (224, 224), cv2.INTER_LINEAR)
+        #return super_imposed_map
+
     def get_msk_for_img(self):
         # msk_path = img_path.replace(self.imgs_root_folder, self.msks_folder)
-        osh = OneSegOneHeatmapCalc(self.msk_path, self.max_segs_num,self.face_msk_path, self.out_sz)
+        osh = OneSegOneHeatmapCalc(self.msk_path, self.max_segs_num,self.face_msk_path, self.out_sz, self.manip_type)
         if osh.orig_msk == []:
             return []
         else:
@@ -157,6 +188,14 @@ class OneImgOneSeg:
             else:
                 hm = self.get_one_heatmap_for_img(hmp)
                 relevant_heat, relevant_bb_heat, rszd_heat = osh.calc_relevant_heat(hm)
+                if self.msk_path == self.face_msk_path: #face segment
+                    img = cv2.imread(self.img_path)
+                    img = cv2.resize(img, [224,224])
+                    superimposed = self.overlay_heatmap_img( img, relevant_heat)
+                    outf = hmp.replace('.npy', '_'+self.manip_type+'.jpg')
+                    #superimposed=cv2.cvtColor(superimposed, cv2.COLOR_RGB2BGR)
+                    cv2.imwrite(outf, superimposed)
+
                 prob_grade, cnr, area = osh.calc_grade_by_seg(relevant_heat, rszd_heat, osh.np_msk)
                 prob_grade_bb, cnr_bb, area_bb = osh.calc_grade_by_seg(relevant_bb_heat, rszd_heat, osh.bb_msk)
                 probs.append(prob_grade)
@@ -171,10 +210,11 @@ class OneImgOneSeg:
 class OneImgAllSegs:
     def __init__(self, alpha: float, img_path: str,
                  segs_data: list[{'seg_name': str, 'instances_num': int, 'msk_path': str, 'heats_list': list[str]},
-                            'outSz':tuple[int, int]]):
+                            'outSz':tuple[int, int]], manip_type:str):
         self.alpha = alpha
         self.img_path = img_path
         self.segs_data = segs_data
+        self.manip_type = manip_type
 
     def analyze_img(self):
         i = 0
@@ -186,7 +226,7 @@ class OneImgAllSegs:
             heats_list = seg_data['heats_list']
             out_sz = seg_data['outSz']
             max_segs_num = seg_data['instances_num']
-            oios = OneImgOneSeg(self.alpha, msk_path, face_msk_path, self.img_path, heats_list, max_segs_num, out_sz)
+            oios = OneImgOneSeg(self.alpha, msk_path, face_msk_path, self.img_path, heats_list, max_segs_num, out_sz, self.manip_type)
             prob_grades, cnrs, areas, prob_grades_bb, cnrs_bb, areas_bb = oios.analyze_img()
             outs[i]['full_path'] = self.img_path
             outs[i]['msk_path'] = seg_data['msk_path']
@@ -201,10 +241,19 @@ class OneImgAllSegs:
             i = i + 1
         return outs
 
+    def overlay_heatmap_img(self, img:np.array, heatmap:np.array):
+        norm_map = (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))
+        single_map = 255 * norm_map
+        single_map = single_map.astype(np.uint8)
+        jet_map = cv2.applyColorMap(single_map, cv2.COLORMAP_JET)
+        super_imposed_map = img * 0.7 + 0.4 * jet_map
+        super_imposed_map = cv2.resize(super_imposed_map, (224, 224), cv2.INTER_LINEAR)
+        return super_imposed_map
+
 
 class CatsSegs:
     def __init__(self, alpha: float, df: pd.DataFrame, out_sz: tuple[int, int], res_folder: str, imgs_root: str,
-                 msks_root: str, heats_root: str):
+                 msks_root: str, heats_root: str, manip_type):
         self.alpha = alpha
         self.out_sz = out_sz
         self.res_folder = res_folder
@@ -217,6 +266,7 @@ class CatsSegs:
         self.ears_masks_root = os.path.join(self.msks_root, 'ears_images')
         self.eyes_masks_root = os.path.join(self.msks_root, 'eyes_images')
         self.mouth_masks_root = os.path.join(self.msks_root, 'mouth_images')
+        self.manip_type = manip_type
 
     def get_heatmap_for_img(self, img_path: str, heatmap_name: str):
         head, tail = os.path.split(img_path)
@@ -248,7 +298,7 @@ class CatsSegs:
         seg_mouth = {'seg_name': 'mouth', 'instances_num': 1, 'msk_path': mouth_msk_path, 'heats_list': heats_list,
                      'outSz': (224, 224)}
         segs_data = [seg_face, seg_ears, seg_eyes, seg_mouth]
-        oias = OneImgAllSegs(self.alpha, img_full_path, segs_data)
+        oias = OneImgAllSegs(self.alpha, img_full_path, segs_data, self.manip_type)
         outs = oias.analyze_img()
         return outs
 
