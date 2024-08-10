@@ -318,20 +318,30 @@ def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
                 if row['video '] == 201 or row['video '] == 61685800 or row['video '] == 1435760:
                     continue
                 copy_jpg_files(source_folder, os.path.join(dest_folder, row['label']), prefix)
-        if ds_name == 'horse_pain':
+        if ds_name == 'horse_pain' :
             for index, row in df.iterrows():
                 os.makedirs(os.path.join(dest_folder, row['label']), exist_ok=True)
                 f= os.path.basename(row['fullpath'])
                 d = os.path.join(os.path.dirname(row['fullpath']),'masked_images')
                 shutil.copyfile(row['fullpath'], os.path.join(dest_folder, row['label'], row['file_name']))
+        if ds_name == 'cats_pain':
+            for index, row in df.iterrows():
+                label='Yes'
+                if row['label']==0:
+                    label='No'
+                os.makedirs(os.path.join(dest_folder, label), exist_ok=True)
+                f = os.path.basename(row['fullpath'])
+                d = os.path.join(os.path.dirname(row['fullpath']), 'masked_images')
+                shutil.copyfile(row['fullpath'], os.path.join(dest_folder, label, row['file_name']))
 
     def create_train_test_folders(root_path: str, dest_folder: str, ds_name: str, csv_path: str,
                                   eval_ids: list[int]):
         df = pd.read_csv(csv_path)
         if ds_name == 'anika_dogs_cropped':
             id_col = 'dog id'
-        if ds_name == "horse_pain":
+        if ds_name == "horse_pain" or ds_name == 'cats_pain' :
             id_col = 'id'
+
         ids = df[id_col].tolist()
         ids = np.unique(np.array(ids)).tolist()
         train_ids = set(ids) - set(eval_ids)
@@ -344,55 +354,31 @@ def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
 
     df = pd.read_csv(config.df_file)
     if config.dataset == "cats_pain":
-        cat_ids=df['CatId'].tolist()
+        cat_ids=df['id'].tolist()
         ids=np.unique(cat_ids)
 
+        orig_dir = config.main_dir
+
         for id in ids:
-            #if id<12:
+            # if id<27:
             #    continue
-            #get relevant rows
-            train_df = df[df["CatId"] != id]
-            eval_df = df[df["CatId"] == id]
-            train_pain = train_df[train_df["Valence"] == 1 ]
-            train_no_pain = train_df[train_df["Valence"] == 0]
-            eval_pain = eval_df[eval_df["Valence"] == 1]
-            eval_no_pain = eval_df[eval_df["Valence"] == 0]
-            #create temp dataset
-            temp_dir = '/home/tali/cat_pain/temp'
-            #create sub dirs
-            train_pain_dir=os.path.join(temp_dir, 'train', 'pain')
-            train_no_pain_dir = os.path.join(temp_dir, 'train', 'no_pain')
-            eval_pain_dir = os.path.join(temp_dir, 'eval', 'pain')
-            eval_no_pain_dir = os.path.join(temp_dir, 'eval', 'no_pain')
-            shutil.rmtree(train_pain_dir, ignore_errors=True)
-            shutil.rmtree(train_no_pain_dir, ignore_errors=True)
-            shutil.rmtree(eval_pain_dir, ignore_errors=True)
-            shutil.rmtree(eval_no_pain_dir, ignore_errors=True)
-            os.makedirs(os.path.join(temp_dir, 'train', 'pain'),exist_ok=True)
-            os.makedirs(os.path.join(temp_dir, 'train', 'no_pain'), exist_ok=True)
-            os.makedirs(os.path.join(temp_dir, 'eval', 'pain'), exist_ok=True)
-            os.makedirs(os.path.join(temp_dir, 'eval', 'no_pain'), exist_ok=True)
+            # get relevant rows
+            train_df = df[df["id"] != id]
+            eval_df = df[df["id"] == id]
 
-            def copy_files(df, cp_dir):
-                f_list = df["FullPath"].tolist()
-                for f in f_list:
-                    shutil.copy(f, cp_dir)
+            # create temp dataset
+            temp_dir = '/home/tali/cats_pain_proj/tmp'
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
-            copy_files(train_pain, os.path.join(temp_dir, 'train', 'pain'))
-            copy_files(train_no_pain, os.path.join(temp_dir, 'train', 'no_pain'))
-            copy_files(eval_pain, os.path.join(temp_dir, 'eval', 'pain'))
-            copy_files(eval_no_pain, os.path.join(temp_dir, 'eval', 'no_pain'))
+            create_train_test_folders(orig_dir, temp_dir, config.dataset, config.df_file, [id])
             cur_workdir = os.path.join(workdir, str(id))
             config.main_dir = temp_dir
-            print('***************start '+str(id)+' *************************\n')
+            print('***************start ' + str(id) + ' *************************\n')
 
             train_and_evaluate(config, cur_workdir)
             print('***************end ' + str(id) + ' *************************\n')
-            #delete temp
+            # delete temp
             shutil.rmtree(temp_dir)
-            #config.eval_only = True
-            #config.init_checkpoint = "./checkpoints/nest_cats/checkpoints-0/ckpt.3"
-            #train_and_evaluate(config, cur_workdir) #eval
     if config.dataset == "horse_pain":
         ids = df['id'].tolist()
         ids = np.unique(ids)
@@ -441,8 +427,8 @@ def train_and_evaluate_loo(config: ml_collections.ConfigDict, workdir: str):
         #train_and_evaluate(config, cur_workdir)
 
         for id in ids:
-            if id<29:
-                continue
+            #if id<29:
+            #    continue
             # get relevant rows
             train_df = df[df["dog id"] != id]
             eval_df = df[df["dog id"] == id]
