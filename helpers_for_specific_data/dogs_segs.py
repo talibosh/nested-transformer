@@ -10,12 +10,17 @@ from typing import List, Dict
 import cv2
 import segments_utils
 from animal_segs import AnimalSegs
-
+import glob
 
 class DogsSegs(AnimalSegs):
     def __init__(self, alpha: float, df: pd.DataFrame, out_sz: tuple[int, int], res_folder: str, imgs_root: str,
-                 msks_root: str, heats_root: str, segs_names: list[str],segs_max_det:list[int],heatmaps_names: list[str]):
-        super().__init__(alpha, df, out_sz, res_folder, imgs_root, msks_root, heats_root, segs_names, segs_max_det, heatmaps_names)
+                 msks_root: str, heats_root: str, segs_names: list[str],segs_max_det:list[int],heatmaps_names: list[str], manip_type:str):
+        return_after_super = False
+        if df.empty:
+            return_after_super = True
+        super().__init__(alpha, df, out_sz, res_folder, imgs_root, msks_root, heats_root, segs_names, segs_max_det, heatmaps_names,manip_type)
+        if return_after_super:
+            return
         self.df["Infered_Class"] = self.df['Infered_Class'].replace({1:'P', 0:'N'})
 
 
@@ -43,7 +48,7 @@ class DogsSegs(AnimalSegs):
             prediction = df["Infered_Class"].tolist()
             correct = sum(1 for x in prediction if x == valence)
             wrong = prediction.__len__() - correct
-            if correct/(correct+wrong) < 0.6:
+            if correct/(correct+wrong) < 0.5:
                 continue
             success = 0
             if correct > wrong:
@@ -126,61 +131,94 @@ class DogsSegs(AnimalSegs):
 
         return means, stds, means_norm_grades, norm_grades_stds
 
-def calc_qualities(inferred_csv_path:str, heats_root:str, out_df_path:str, heats_names:list[str]):
+def calc_qualities(inferred_csv_path:str, heats_root:str, out_df_path:str, heats_names:list[str],manip_type:str):
     df = pd.read_csv(inferred_csv_path)
     dogSegs = DogsSegs(alpha=0.8, df=df, out_sz=(28, 28), res_folder='/home/tali',
                        imgs_root='/home/tali/dogs_annika_proj/data_set/',
                        msks_root='/home/tali/dogs_annika_proj/data_set/',
                        heats_root=heats_root,
                        segs_names=["face", "ear", "eye", "mouth"], segs_max_det=[1, 2, 2, 1],
-                       heatmaps_names=heats_names)
+                       heatmaps_names=heats_names,
+                       manip_type = manip_type)
 
     all_outs = dogSegs.analyze_all()
     res_df = dogSegs.create_res_df(all_outs)
     res_df.to_csv(out_df_path)
-    # analysis_df = dogSegs.analyze_df(res_df)
-    # df_analysis_path = '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/res_analysis.csv'
-    # analysis_df.to_csv(df_analysis_path)
-    for hn in heats_names:
-        quality_mean, quality_median, res = dogSegs.calc_map_type_quality(res_df, ['face'], hn)
-        print(hn + " qual_mean:"+str(quality_mean)+ " qual_median:"+str(quality_median))
-        for key, value in res.items():
-            print(f"{key}: {value}")
-    #P
-    pdf=res_df[res_df['valence']=='P']
-    print('Analyze P')
-    for hn in heats_names:
-        quality_mean, quality_median, res = dogSegs.calc_map_type_quality(pdf, ['face'], hn)
-        print(hn + " qual_mean:"+str(quality_mean)+ " qual_median:"+str(quality_median))
-        for key, value in res.items():
-            print(f"{key}: {value}")
-    #N
-    ndf = res_df[res_df['valence'] == 'N']
-    print('Analyze N')
-    for hn in heats_names:
-        quality_mean, quality_median, res = dogSegs.calc_map_type_quality(ndf, ['face'], hn)
-        print(hn + " qual_mean:" + str(quality_mean) + " qual_median:" + str(quality_median))
-        for key, value in res.items():
-            print(f"{key}: {value}")
+    summary_path = os.path.join(os.path.dirname(out_df_path),'summary_'+manip_type+'.json')
+    cuts_dict = {'all': 'all', 'P': 'valence', 'N': 'valence'}
+    dogSegs.summarize_results_and_calc_qualities(res_df, cuts_dict, summary_path)
+    return summary_path
+
+def run_dogs():
+    def create_pytorch_path(type:str,ft:str, root_path:str,add:str)->str:
+        out_path = os.path.join(root_path, 'pytorch_'+type+ft,add)
+        return out_path
+
+    heats_names = ['grad_cam','xgrad_cam','grad_cam_plusplus','power_grad_cam']
+    root_path = '/home/tali/dogs_annika_proj'
+    types_pytorch = ['vit','dino','resnet50','nest-tiny']
+    #   types_pytorch = ['dino']
+
+    run_type =['']
+    manip_type=['']
+    summaries = {}
+    for rt in run_type:
+        for i,type in enumerate(types_pytorch):
+            for manipulation in manip_type:
+                if type == 'nest-tiny':
+                    inference_file = "/home/tali/dogs_annika_proj/cropped_face/total_25_mini_masked.csv"
+                    heats_root = '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/'
+                    out_df_path = os.path.join(heats_root,'analysis_'+manipulation+'.csv')
+                else:
+                    inference_file = create_pytorch_path(type,rt,root_path,'inference.csv')
+                    heats_root = create_pytorch_path(type,rt,root_path,'maps')
+                    out_df_path = create_pytorch_path(type, rt, root_path, 'analysis_' + manipulation + '.csv')
+
+                jpg_files = glob.glob(os.path.join(heats_root, "**", "*.jpg"), recursive=True)
+
+                # Delete each .jpg file
+                for file_path in jpg_files:
+                    os.remove(file_path)
+                summary_path=calc_qualities(inference_file, heats_root, out_df_path, heats_names, manipulation)
+                summaries[type] = summary_path
+    return summaries
 
 
-
+def plot_dogs(net_jsons:dict):
+    heats_names = ['grad_cam', 'xgrad_cam', 'grad_cam_plusplus', 'power_grad_cam']
+    dogsSegs = DogsSegs(alpha=0.8, df=pd.DataFrame(), out_sz=(28, 28), res_folder='/home/tali',
+                            imgs_root='/home/tali/horses/dataset/',
+                            msks_root='/home/tali/horses/dataset/',
+                            heats_root='',
+                            segs_names=["face", "ears", "eyes", "mouth"], segs_max_det=[1, 1, 1, 1],
+                            heatmaps_names=heats_names, manip_type='')
+    net_colors = {'resnet50': 'red', 'vit': 'green', 'dino': 'blue', 'nest-tiny': 'orange'}
+    dogsSegs.go_over_jsons_and_plot(net_colors, net_jsons)
 
 if __name__ == "__main__":
+    summaries = run_dogs()
+    plot_dogs(summaries)
+    '''
     # img_path = '/home/tali/cats_pain_proj/face_images/pain/cat_10_video_1.1.jpg'
     # msk_path = '/home/tali/cats_pain_proj/eyes_images/pain/cat_10_video_1.1.jpg'
     # plot_msk_on_img(img_path, msk_path)
-
+    manip_type='exp'
     type = 'ViT-dino'
+    type ='NesT-tiny'
     #dogs
     #ViT-dino
-    heats_names = ['cam', 'grad_cam', 'eigen_cam']
+    heats_names = ['grad_cam','cam']
     match type:
         case 'ViT-dino':
-            inferred_csv_path = '/home/tali/dogs_annika_proj/pytorch_dino/inferred_df.csv'
+            inferred_csv_path = '/home/tali/dogs_annika_proj/pytorch_dino/inferred_df_plus.csv'
             heats_root = '/home/tali/dogs_annika_proj/pytorch_dino/maps/'
             out_df_path = '/home/tali/dogs_annika_proj/pytorch_dino/analysis/analysis.csv'
-            calc_qualities(inferred_csv_path, heats_root, out_df_path, heats_names)
+            calc_qualities(inferred_csv_path, heats_root, out_df_path, heats_names,manip_type)
+        case 'NesT-tiny':
+            inferred_csv_path = "/home/tali/dogs_annika_proj/cropped_face/total_25_mini_masked.csv"
+            heats_root = '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/'
+            out_df_path = '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/analysis/analyze.csv'
+            calc_qualities(inferred_csv_path, heats_root, out_df_path, heats_names,manip_type)
 
     #resnet
     #NesT
@@ -189,7 +227,8 @@ if __name__ == "__main__":
                        imgs_root='/home/tali/dogs_annika_proj/data_set/',
                        msks_root='/home/tali/dogs_annika_proj/data_set/',
                        heats_root='/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/',
-                       segs_names = ["face", "ear", "eye", "mouth"], segs_max_det=[1, 2, 2, 1], heatmaps_names=["cam", "grad_cam", "eigen_cam"])
+                       segs_names = ["face", "ear", "eye", "mouth"], segs_max_det=[1, 2, 2, 1], heatmaps_names=["cam", "grad_cam"],
+                       manip_type = 'power')
 
     all_outs = dogSegs.analyze_all()
     out_df_path = '/home/tali/dogs_annika_proj/res_25_mini_masked_all_maps/analyze.csv'
@@ -201,4 +240,4 @@ if __name__ == "__main__":
     dogSegs.calc_map_type_quality(res_df, ['face'],'cam')
     dogSegs.calc_map_type_quality(res_df, ['face'], 'grad_cam')
     dogSegs.calc_map_type_quality(res_df, ['face'], 'eigen_cam')
-
+    '''
