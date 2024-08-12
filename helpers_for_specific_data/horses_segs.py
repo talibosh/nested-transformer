@@ -119,6 +119,7 @@ def run_horses():
     heats_names = ['grad_cam','xgrad_cam','grad_cam_plusplus','power_grad_cam']
     root_path = '/home/tali/horses'
     net_types = ['vit','dino','resnet50','nest-tiny']
+    #net_types = ['dino', 'nest-tiny']
     run_type =['']
     manip_type=['']
     summaries={}
@@ -151,7 +152,9 @@ def plot_horses(net_jsons:dict):
                             segs_names=["face", "top", "middle", "bottom"], segs_max_det=[1, 1, 1, 1],
                             heatmaps_names=heats_names, manip_type='')
     net_colors = {'resnet50': 'red', 'vit': 'green', 'dino': 'blue', 'nest-tiny': 'orange'}
-    horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons)
+    outdir = '/home/tali/horses/plots/'
+    os.makedirs(outdir,exist_ok=True)
+    horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons,outdir)
 
 if __name__ == "__main__":
     # img_path = '/home/tali/cats_pain_proj/face_images/pain/cat_10_video_1.1.jpg'

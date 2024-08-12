@@ -319,7 +319,7 @@ class AnimalSegs:
             # Create a set excluding the specific value
             keys_to_keep = {item for item in self.segs_names if item != value_to_exclude}
             #keys_to_keep.add('quality')
-            keys_to_keep.add('quality_score')
+            keys_to_keep={'quality_score'}
             # Create a new dictionary with only the desired keys
             filtered_dict = {key: my_dict[key] for key in keys_to_keep if key in my_dict}
             return filtered_dict
@@ -342,7 +342,7 @@ class AnimalSegs:
 
         return dicts
 
-    def go_over_jsons_and_plot(self, net_colors:dict, net_jsons:dict):
+    def go_over_jsons_and_plot(self, net_colors:dict, net_jsons:dict,outdir:str):
 
         final_dicts = {}
         for key in net_jsons.keys():
@@ -352,7 +352,7 @@ class AnimalSegs:
                     final_dicts[type_analyze]={}
                 final_dicts[type_analyze][key] =  dicts[type_analyze]
 
-        segments_marks={ 'quality_score':'d'}
+        segments_marks={ 'quality_score':'s'}
         marks_options= ['5','^','o','*']
         for i,seg in enumerate(self.segs_names):
             if seg == 'face':
@@ -360,10 +360,11 @@ class AnimalSegs:
             segments_marks[seg]=marks_options[i]
 
         for k in final_dicts.keys():
-            self.plot_results(net_colors, segments_marks, final_dicts[k])
+            outpath = os.path.join(outdir,'quals_'+k+'.jpg')
+            self.plot_results(net_colors, segments_marks, final_dicts[k],outpath)
 
 
-    def plot_results(self,net_colors:dict,segments_marks:dict,data:dict):
+    def plot_results(self,net_colors:dict,segments_marks:dict,data:dict,outpath:str):
         # X-axis labels
         x_labels = self.heatmaps_names#['gc', 'xgc', 'gc++', 'pgc']
 
@@ -398,11 +399,12 @@ class AnimalSegs:
 
             # Set the limits of the axes
         ax.set_xlim(0, x_labels.__len__()+2)
-        ax.set_ylim(0,10)
+        ax.set_ylim(0,5)
 
             # Set x-ticks and labels
         ax.set_xticks(range(1,1+len(x_labels)))
-        ax.set_xticklabels(x_labels,rotation = 0)
+        ax.tick_params(axis='x', labelsize=7)
+        ax.set_xticklabels(x_labels,rotation = 7)
 
         #ax.set_yticks(np.arange(0, 2, 0.1))
 
@@ -421,25 +423,27 @@ class AnimalSegs:
             #        ax.scatter(i, data[i, j], color=colors[i], marker=markers[j], s=100)
 
             # Adding legend
-        for i, seg in enumerate(segments_marks.keys()):
-            ax.scatter([], [], edgecolors='k',facecolors='none', marker=segments_marks[seg], s=100, label=seg)
+        #for i, seg in enumerate(segments_marks.keys()):
+        #    ax.scatter([], [], edgecolors='k',facecolors='none', marker=segments_marks[seg], s=100, label=seg)
+        net_name={'resnet50':'ResNet50', 'vit':'ViT','dino':'ViT-dino','nest-tiny':'NesT'}
         for i, net in enumerate(net_colors.keys()):
             ax.scatter([], [], color=net_colors[net], marker='s', s=100, label=net)
 
-            #for i, marker in enumerate(markers):
-            #    ax.scatter([], [], color='k', marker=marker, s=100, label=f'Shape {marker}')
+        #for i, marker in enumerate(markers):
+         #   ax.scatter([], [], color='k', marker=marker, s=100, label=f'Shape {marker}')
             #for i, color in enumerate(colors):
             #    ax.scatter([], [], color=color, marker='o', s=100, label=f'Group {color}')
 
         ax.legend(loc='upper right')
 
             # Set labels
-        ax.set_xlabel('heat maps types')
-        ax.set_ylabel('mean normalyzed grades and qualities')
+        ax.set_xlabel('heat map type')
+        ax.set_ylabel('quality score')
 
             # Display the plot
-        plt.title('Summary')
+        #plt.title('Summary')
         plt.grid(True)
+        plt.savefig(outpath)
         plt.show()
 
 

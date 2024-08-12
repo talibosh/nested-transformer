@@ -187,13 +187,15 @@ def run_dogs():
 def plot_dogs(net_jsons:dict):
     heats_names = ['grad_cam', 'xgrad_cam', 'grad_cam_plusplus', 'power_grad_cam']
     dogsSegs = DogsSegs(alpha=0.8, df=pd.DataFrame(), out_sz=(28, 28), res_folder='/home/tali',
-                            imgs_root='/home/tali/horses/dataset/',
-                            msks_root='/home/tali/horses/dataset/',
+                            imgs_root='/home/tali/dogs_annika_proj/data_set/',
+                            msks_root='/home/tali/dogs_annika_proj/data_set/',
                             heats_root='',
                             segs_names=["face", "ears", "eyes", "mouth"], segs_max_det=[1, 1, 1, 1],
                             heatmaps_names=heats_names, manip_type='')
     net_colors = {'resnet50': 'red', 'vit': 'green', 'dino': 'blue', 'nest-tiny': 'orange'}
-    dogsSegs.go_over_jsons_and_plot(net_colors, net_jsons)
+    outdir = '/home/tali/dogs_annika_proj/plots/'
+    os.makedirs(outdir, exist_ok=True)
+    dogsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir)
 
 if __name__ == "__main__":
     summaries = run_dogs()
