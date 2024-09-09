@@ -89,6 +89,7 @@ class AnimalSegs:
         # Create new lists and add them to the dictionary
         for seg_name in self.segs_names:
             list_name_area = seg_name + "_area"
+            list_name_area_pixels = seg_name + "_area_pixels"
             #list_name_area_bb = seg_name + "_area_bb"
             for heat_name in self.heatmaps_names:
                 list_name_prob = seg_name + "_prob_" + heat_name
@@ -102,6 +103,7 @@ class AnimalSegs:
                 analyze_res_lists[list_name_prob] = []
                 #analyze_res_lists[list_name_cnr] = []
                 analyze_res_lists[list_name_area] = []
+                analyze_res_lists[list_name_area_pixels] = []
                 analyze_res_lists[list_name_ng] = []
                 #analyze_res_lists[list_name_prob_bb] = []
                 #analyze_res_lists[list_name_cnr_bb] = []
@@ -123,10 +125,13 @@ class AnimalSegs:
                 seg_res = one_img_res[seg_idx]
                 seg_name = seg_res["seg_name"]
                 area_name = seg_name + "_area"
+                area_pixels_name = seg_name + "_area_pixels"
                 #area_name_bb = area_name + "_bb"
                 area = seg_res['areas'][0]
+                area_pixels = seg_res['areas_pixels'][0]
                 #area_bb = seg_res['areas_bb'][0]
                 analyze_res_lists[area_name].append(area)
+                analyze_res_lists[area_pixels_name].append(area_pixels)
                 #analyze_res_lists[area_name_bb].append(area_bb)
                 for heat_idx in range(self.heatmaps_names.__len__()):
                     heat_name = self.heatmaps_names[heat_idx]
@@ -232,16 +237,50 @@ class AnimalSegs:
             new_df = pd.concat([new_df, seg_dict, seg_dict_bb], axis=1)
         return new_df
 
+    def calc_measures(self, df:pandas.DataFrame, segs_to_ignore:list[str], map_type:str):
+        res = dict()
+        data_for_analysis = dict()
+        for seg_name in self.segs_names:
+            if seg_name in segs_to_ignore:
+                num_of_used_segs = num_of_used_segs - 1
+                continue
+            seg_prob = np.array(df[seg_name + "_prob_" + map_type].tolist())
+            seg_area = np.array(df[seg_name + "_area"].tolist())
+            seg_relevant_locs = np.nonzero(seg_area)
+            seg_ng = np.divide(seg_prob, seg_area+0.000001)
+            seg_prob_mean = np.mean(seg_prob[seg_relevant_locs])
+            seg_area_mean = np.mean(seg_area[seg_relevant_locs])
+            #good_ng = seg_ng[seg_ng > 1]
+            #perc_good_ng = good_ng.__len__() / seg_ng.__len__()
+            data_for_analysis[seg_name+'_prob'] = seg_prob
+            data_for_analysis[seg_name + '_area'] = seg_area
+            data_for_analysis[seg_name + '_ng'] = seg_ng
+            data_for_analysis[seg_name + '_relevant_locs'] = seg_relevant_locs
+            data_for_analysis[seg_name + '_prob_mean'] = seg_prob_mean
+            data_for_analysis[seg_name + '_area_mean'] = seg_area_mean
+            seg_prob_with_mean = seg_area[seg_area == 0] = seg_prob_mean
+            seg_area_with_mean = seg_area[seg_area == 0] = seg_area_mean
+            seg_ng_with_mean = np.divide(seg_prob_with_mean, seg_area_with_mean)
+            data_for_analysis[seg_name + '_prob_with_mean'] = seg_prob_with_mean
+            data_for_analysis[seg_name + '_area_with_mean'] = seg_area_with_mean
+            data_for_analysis[seg_name + '_ng_with_mean'] = seg_ng_with_mean
+
+        # find out number of relevant images
+
+
+
     def calc_map_type_quality(self, df:pandas.DataFrame, segs_to_ignore:list[str], map_type:str):
         total_mean =0
-        total_outer_mean = 0
+        #total_outer_mean = 0
         total_median = 0
-        total_outer_median = 0
+        #total_outer_median = 0
         total_mean_prob_of_segs=0
         total_mean_area_of_segs=0
         perc_good_grades = 0
         total_qual = 0
         total_qual_high =0
+        total_scaled = 0
+        total_scaled_high = 0
         num_of_used_segs = self.segs_names.__len__()
         res=dict()
         for seg_name in self.segs_names:
@@ -250,41 +289,54 @@ class AnimalSegs:
                 continue
             seg_prob = np.array(df[seg_name+"_prob_" + map_type].tolist())
             seg_area = np.array(df[seg_name+"_area"].tolist())
+            seg_area_pixels = np.array(df[seg_name + "_area_pixels"].tolist())
             seg_relevant_locs = np.nonzero(seg_area)
             seg_ng = np.divide(seg_prob[seg_relevant_locs], seg_area[seg_relevant_locs])
+            seg_prob_density = np.divide(seg_prob[seg_relevant_locs], seg_area_pixels[seg_relevant_locs])
+            seg_scaled_grade = seg_prob_density*100
             seg_prob_mean = np.mean(seg_prob[seg_relevant_locs])
             seg_area_mean = np.mean(seg_area[seg_relevant_locs])
+            seg_area_pixels_mean = np.mean(seg_area_pixels[seg_relevant_locs])
+            seg_scaled_grade_mean = np.mean(seg_scaled_grade)
             good_ng = seg_ng[seg_ng > 1]
             perc_good_ng = good_ng.__len__()/seg_ng.__len__()
 
             seg_mean_high_ng = np.mean(good_ng) if perc_good_ng>0 else 0
+            seg_mean_high_scaled_grade = np.mean(seg_scaled_grade[seg_ng > 1]) if perc_good_ng>0 else 0
             seg_mean = np.mean(seg_ng)
+            seg_mean_scaled = np.mean(seg_scaled_grade)
             seg_median = np.median(seg_ng)
             res[seg_name+"_mean"]=seg_mean
             res[seg_name + "_mean_high_ng"] = seg_mean_high_ng
+            res[seg_name + "_mean_scaled"] = seg_mean_scaled
+            res[seg_name + "_mean_high_scaled"] = seg_mean_high_scaled_grade
             #res[seg_name+"_median"] = seg_median
             res[seg_name+"_prob_mean"]=seg_prob_mean
             res[seg_name + "_area_mean"] = seg_area_mean
+            res[seg_name + "_area_pixels_mean"] = seg_area_pixels_mean
             res[seg_name + "_perc_good_ng"] = perc_good_ng
             res[seg_name + "_percent*ng"] = perc_good_ng*seg_mean
             res[seg_name + "_percent*high_ng"] = perc_good_ng * seg_mean_high_ng
+            res[seg_name + "_percent*high_scaled_grade"] = perc_good_ng * seg_mean_high_scaled_grade
             perc_good_grades = max(perc_good_ng,perc_good_grades)
-            seg_outer_area = np.ones(seg_area[seg_relevant_locs].shape)-seg_area[seg_relevant_locs]
-            seg_outer_prob = np.ones(seg_prob[seg_relevant_locs].shape)-seg_prob[seg_relevant_locs]
-            seg_outer_ng = np.divide(seg_outer_prob, seg_outer_area)
-            seg_outer_mean = np.mean(seg_outer_ng)
-            seg_outer_median = np.median(seg_outer_ng)
+            #seg_outer_area = np.ones(seg_area[seg_relevant_locs].shape)-seg_area[seg_relevant_locs]
+            #seg_outer_prob = np.ones(seg_prob[seg_relevant_locs].shape)-seg_prob[seg_relevant_locs]
+            #seg_outer_ng = np.divide(seg_outer_prob, seg_outer_area)
+            #seg_outer_mean = np.mean(seg_outer_ng)
+            #seg_outer_median = np.median(seg_outer_ng)
             total_qual = total_qual + perc_good_ng*seg_mean
+            total_scaled = total_scaled + perc_good_ng * seg_scaled_grade_mean
             total_qual_high = total_qual_high + perc_good_ng*seg_mean_high_ng
+            total_scaled_high = total_scaled_high + perc_good_ng * seg_mean_high_scaled_grade
             total_mean = total_mean + seg_mean
-            total_outer_mean = total_outer_mean + seg_outer_mean
+            #total_outer_mean = total_outer_mean + seg_outer_mean
             total_median = total_median + seg_median
-            total_outer_median = total_outer_median + seg_outer_median
+            #total_outer_median = total_outer_median + seg_outer_median
             total_mean_area_of_segs = total_mean_area_of_segs + seg_area_mean
             total_mean_prob_of_segs = total_mean_prob_of_segs + seg_prob_mean
-        outer_mean_area = 1  - total_mean_area_of_segs
-        outer_mean_prob =1 -total_mean_prob_of_segs
-        outer_mean_ng = outer_mean_prob/outer_mean_area
+        #outer_mean_area = 1  - total_mean_area_of_segs
+        #outer_mean_prob =1 -total_mean_prob_of_segs
+        #outer_mean_ng = outer_mean_prob/outer_mean_area
         qual_mean = total_mean_prob_of_segs/total_mean_area_of_segs
         #quality_mean = total_mean -num_of_used_segs*outer_mean_ng #total_outer_mean
         quality_mean=0
@@ -294,15 +346,27 @@ class AnimalSegs:
         res["max_perc_good_grades"]=perc_good_grades
         res["total_qual"]=total_qual
         res["total_qual_high"]=total_qual_high/num_of_used_segs
+        res["total_scaled"] = total_scaled
+        res["total_scaled_high"] = total_scaled_high / num_of_used_segs
         ordered_data = OrderedDict()
         ordered_data["total_qual_high"] = res.pop("total_qual_high")
         ordered_data["total_qual"] = res.pop("total_qual")
+        ordered_data["total_scaled"] = res.pop("total_scaled")
+        ordered_data["total_scaled_high"] = res.pop("total_scaled_high")
 
         # Add the remaining items
         ordered_data.update(res)
         return ordered_data
 
-    def create_data_from_summary_json_file(self,summary_path:str):
+    def rmv_keys(self, my_dict: dict, keys_to_keep):
+        # Keys to keep
+        #value_to_exclude = 'face'
+
+        # Create a new dictionary with only the desired keys
+        filtered_dict = {key: my_dict[key] for key in keys_to_keep if key in my_dict}
+        return filtered_dict
+
+    def create_data_from_summary_json_file(self,summary_path:str, plot_type:str):
         with open(summary_path, 'r') as file:
             data = json.load(file) #data is dict
         #cut into list of dicts
@@ -313,16 +377,15 @@ class AnimalSegs:
             except:
                 print('no such key ' + old_key)
             return my_dict
-        def rmv_keys(my_dict:dict, ):
-            # Keys to keep
-            value_to_exclude = 'face'
-            # Create a set excluding the specific value
-            keys_to_keep = {item for item in self.segs_names if item != value_to_exclude}
-            #keys_to_keep.add('quality')
+
+        value_to_exclude = 'face'
+        if plot_type == 'quals':
             keys_to_keep={'quality_score'}
-            # Create a new dictionary with only the desired keys
-            filtered_dict = {key: my_dict[key] for key in keys_to_keep if key in my_dict}
-            return filtered_dict
+        elif plot_type == 'scaled':
+            keys_to_keep = {'scaled_score'}
+        else:
+            keys_to_keep = {item for item in self.segs_names if item != value_to_exclude}
+        # keys_to_keep.add('quality')
 
         for idx, key in enumerate(data.keys()):
             curr_dict = data[key]
@@ -332,74 +395,76 @@ class AnimalSegs:
                 new_dict[hm]={}
                 #hm_dict = change_key_names(hm_dict,'total_qual', 'quality')
                 hm_dict = change_key_names(hm_dict, 'total_qual_high', 'quality_score')
+                hm_dict = change_key_names(hm_dict, 'total_scaled_high', 'scaled_score')
                 for seg in self.segs_names:
                     #hm_dict = change_key_names(hm_dict, seg+'_mean', seg)
-                    hm_dict = change_key_names(hm_dict, seg + '_percent*high_ng', seg)
+                    if plot_type=='seg_quals':
+                        hm_dict = change_key_names(hm_dict, seg + '_percent*high_ng', seg)
+                    if plot_type == 'seg_scaled':
+                        hm_dict = change_key_names(hm_dict, seg + '_percent*high_scaled_grade', seg)
+                # Create a set excluding the specific value
 
-                hm_dict = rmv_keys(hm_dict)
+                hm_dict = self.rmv_keys(hm_dict,keys_to_keep)
                 new_dict[hm] = hm_dict
             dicts[key] = new_dict
 
         return dicts
 
-    def go_over_jsons_and_plot(self, net_colors:dict, net_jsons:dict,outdir:str):
+    def go_over_jsons_and_plot(self, net_colors:dict, net_jsons:dict,outdir:str,plot_type:str):
 
         final_dicts = {}
-        for key in net_jsons.keys():
-            dicts = self.create_data_from_summary_json_file(net_jsons[key])
+        keys2chk = list(net_jsons.keys())
+        if plot_type == 'seg_quals' or plot_type == 'seg_scaled':
+            keys2chk = [key for key in keys2chk if key not in ['vit_', 'vit_power', 'resnet50_', 'resnet50_power']]
+
+        for key in keys2chk:
+            dicts = self.create_data_from_summary_json_file(net_jsons[key],plot_type)
             for i,type_analyze in enumerate(dicts.keys()):
                 if (type_analyze in final_dicts)==False:
                     final_dicts[type_analyze]={}
                 final_dicts[type_analyze][key] =  dicts[type_analyze]
 
-        segments_marks={ 'quality_score':'s'}
-        marks_options= ['5','^','o','*']
-        for i,seg in enumerate(self.segs_names):
-            if seg == 'face':
-                continue
-            segments_marks[seg]=marks_options[i]
+        segments_marks = {}
+        if plot_type == 'quals':
+            segments_marks={ 'quality_score':'s'}#, 'scaled_score': 's'}
+        elif plot_type == 'scaled':
+            segments_marks={ 'scaled_score':'s'}#, 'scaled_score': 's'}
+        else:
+            marks_options= ['5','^','o','*']
+            for i,seg in enumerate(self.segs_names):
+                if seg == 'face':
+                    continue
+                segments_marks[seg]=marks_options[i]
 
         for k in final_dicts.keys():
-            outpath = os.path.join(outdir,'quals_'+k+'.jpg')
-            self.plot_results(net_colors, segments_marks, final_dicts[k],outpath)
+            plot_name = plot_type + '_' + k
+            self.plot_results(net_colors, segments_marks, final_dicts[k],outdir,plot_name)
 
 
-    def plot_results(self,net_colors:dict,segments_marks:dict,data:dict,outpath:str):
+    def plot_results(self,net_colors:dict,segments_marks:dict,data:dict,outpath:str,plot_type:str):
         # X-axis labels
         x_labels = self.heatmaps_names#['gc', 'xgc', 'gc++', 'pgc']
 
         #net_colors={'resnet50':'red', 'ViT':'green', 'ViT-dino':'blue', 'NesT':'orange'}
         #segments_marks={'eyes':'o','ears':'^','mouth':'*','quality':'2'}
-        '''
-        data = {'resnet50':{'grad_cam': {'ears':0.859,'eyes':0.42,'mouth':0.645,'quality':0.626},
-                             'xgrad_cam':{'ears':0.859,'eyes':0.42,'mouth':0.645,'quality':0.626},
-                                'grad_cam_plusplus':{'ears':0.98,'eyes':1.045,'mouth':0.928,'quality':1.382},
-                                'power_grad_cam':   {'ears':1.162,'eyes':0.44,'mouth':0.566,'quality':0.798}},
-                    'ViT': {'grad_cam': {'ears': 0.823, 'eyes': 1.55, 'mouth': 1.07, 'quality': 1.76},
-                                 'xgrad_cam': {'ears': 1.04, 'eyes': 0.99, 'mouth': 0.924, 'quality': 1.2},
-                                 'grad_cam_plusplus': {'ears': 0.98, 'eyes': 1.045, 'mouth': 0.928, 'quality': 2.07},
-                                 'power_grad_cam': {'ears': 0.67, 'eyes': 0.5, 'mouth': 1.09, 'quality': 0.74}},
-                    'ViT-dino': {'grad_cam': {'ears': 1.43, 'eyes': 0.95, 'mouth': 0.82, 'quality': 1.58},
-                            'xgrad_cam': {'ears': 1.006, 'eyes': 1.02, 'mouth':1.129, 'quality': 1.67},
-                            'grad_cam_plusplus': {'ears': 1.02, 'eyes': 2.079, 'mouth': 0.674, 'quality': 1.42},
-                            'power_grad_cam': {'ears': 2.12, 'eyes': 6.35, 'mouth': 0.54, 'quality': 6.86}},
-                    'NesT': {'grad_cam': {'ears': 1.161, 'eyes': 1.219, 'mouth': 1.059, 'quality': 3.157},
-                                 'xgrad_cam': {'ears': 1.161, 'eyes': 1.219, 'mouth': 1.059, 'quality': 3.157},
-                                 'grad_cam_plusplus': {'ears': 1.161, 'eyes': 1.219, 'mouth': 1.059, 'quality': 3.157},
-                                 'power_grad_cam': {'ears': 1.161, 'eyes': 1.219, 'mouth': 1.059, 'quality': 3.157}}
-                }
 
-            '''
             # Colors and markers for the groups
             #colors = ['red', 'green', 'blue', 'orange'] #every net has a color
             #markers = ['o', '^', 's', '*']#every
 
             # Create figure and axes
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(10, 6))
 
             # Set the limits of the axes
         ax.set_xlim(0, x_labels.__len__()+2)
-        ax.set_ylim(0,5)
+        if plot_type.startswith('quals'):
+            ax.set_ylim(0,2.5)
+        if plot_type.startswith('scaled'):
+            ax.set_ylim(0, 0.6)
+        if plot_type.startswith('seg_quals'):
+            ax.set_ylim(0, 5)
+        if plot_type.startswith('seg_scaled'):
+            ax.set_ylim(0, 1.5)
 
             # Set x-ticks and labels
         ax.set_xticks(range(1,1+len(x_labels)))
@@ -407,15 +472,26 @@ class AnimalSegs:
         ax.set_xticklabels(x_labels,rotation = 7)
 
         #ax.set_yticks(np.arange(0, 2, 0.1))
+        def remove_last_underscore(input_string):
+            # Find the position of the last underscore
+            last_underscore_index = input_string.rfind('_')
+
+            # If an underscore is found, slice the string up to that point
+            if last_underscore_index != -1:
+                return input_string[:last_underscore_index]
+            else:
+                # If no underscore is found, return the original string
+                return input_string
 
         for index, netType in enumerate(data.keys()):
-            color = net_colors[netType]
+            curr_net = remove_last_underscore(netType)
+            color = net_colors[curr_net]
             net_data = data[netType]
             for x_tick,heatmap in enumerate(net_data.keys()):
                 hm_data = net_data[heatmap]
                 for i, segment in enumerate(hm_data.keys()):
                     marker = segments_marks[segment]
-                    ax.scatter(x_tick+1, hm_data[segment], edgecolors=color,facecolors='none', marker=marker, s=100)
+                    ax.scatter(self.heatmaps_names.index(heatmap)+1, hm_data[segment], edgecolors=color,facecolors='none', marker=marker, s=100)
 
             # Plot the data
             #for i in range(4):  # 4 groups
@@ -423,11 +499,18 @@ class AnimalSegs:
             #        ax.scatter(i, data[i, j], color=colors[i], marker=markers[j], s=100)
 
             # Adding legend
-        #for i, seg in enumerate(segments_marks.keys()):
-        #    ax.scatter([], [], edgecolors='k',facecolors='none', marker=segments_marks[seg], s=100, label=seg)
+        segs_name = {'top': 'Ears', 'middle': 'Eyes', 'bottom': 'Muzzles',
+                     'ear': 'Ears','eye':'Eyes', 'ears':'Ears', 'eyes':'Eyes','mouth':'Mouth'}
+        for i, seg in enumerate(segments_marks.keys()):
+            if not(seg=='quality_score') and not(seg=='scaled_score') :
+                ax.scatter([], [], edgecolors='k',facecolors='none', marker=segments_marks[seg], s=100, label=segs_name[seg])
+
+            #if not(seg=='scaled_score'):
+            #    ax.scatter([], [], edgecolors='k',facecolors='none', marker=segments_marks[seg], s=100, label=segs_name[seg])
+
         net_name={'resnet50':'ResNet50', 'vit':'ViT','dino':'ViT-dino','nest-tiny':'NesT'}
         for i, net in enumerate(net_colors.keys()):
-            ax.scatter([], [], color=net_colors[net], marker='s', s=100, label=net)
+            ax.scatter([], [], color=net_colors[net], marker='s', s=100, label=net_name[net])
 
         #for i, marker in enumerate(markers):
          #   ax.scatter([], [], color='k', marker=marker, s=100, label=f'Shape {marker}')
@@ -438,14 +521,30 @@ class AnimalSegs:
 
             # Set labels
         ax.set_xlabel('heat map type')
-        ax.set_ylabel('quality score')
+        ax.set_ylabel('segs quality score')
 
             # Display the plot
         #plt.title('Summary')
         plt.grid(True)
-        plt.savefig(outpath)
+        plt.savefig(os.path.join(outpath, plot_type+'.jpg'))
         plt.show()
+    def map_names_powered(self,summary1:str, summary2:str):
+        heats_mapping = {'grad_cam': 'grad_cam_power', 'xgrad_cam': 'xgrad_cam_power',
+                         'grad_cam_plusplus': 'grad_cam_plusplus_power', 'power_grad_cam': 'power_grad_cam_power'}
+        with open(summary1, 'r') as file:
+            data1 = json.load(file)
 
+        def rename_fields(data, field_mapping):
+            if isinstance(data, list):
+                return [rename_fields(item, field_mapping) for item in data]
+            elif isinstance(data, dict):
+                return {field_mapping.get(key, key): rename_fields(value, field_mapping) for key, value in data.items()}
+            else:
+                return data
+
+        updated_data = rename_fields(data1, heats_mapping)
+        with open(summary2, 'w') as file:
+            json.dump(updated_data, file, indent=4)
 
 
 if __name__ == "__main__":

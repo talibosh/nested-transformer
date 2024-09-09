@@ -59,7 +59,7 @@ class OneSegOneHeatmapCalc:
         face_heat=heatmap *self.np_face_msk
 
         if self.manipulation_type == 'power':
-            face_heat = np.power(face_heat,5)
+            face_heat = np.power(face_heat,2)
         if self.manipulation_type == 'exp':
             face_heat = np.exp(face_heat*2)
 
@@ -82,7 +82,8 @@ class OneSegOneHeatmapCalc:
         #area = np.sum(msk) / (msk.shape[0] * msk.shape[1])
         #area = np.sum(msk) / np.sum(self.np_face_msk)
         area = np.sum(np.multiply(msk, self.np_face_msk))/ np.sum(self.np_face_msk)
-        return prob_grade, cnr, area
+        area_pixels = np.sum(np.multiply(msk, self.np_face_msk))
+        return prob_grade, cnr, area, area_pixels
 
     def calc_grade_sums_by_seg(self, relevant_heat: np.array, rszd_heat: np.array):
         grade_sum = np.sum(relevant_heat)
@@ -173,18 +174,23 @@ class OneImgOneSeg:
         probs = []
         cnrs = []
         areas = []
+        areas_pixels = []
 
         probs_bb = []
         cnrs_bb = []
         areas_bb = []
+        areas_pixels_bb = []
         for hmp in self.heatmap_paths:
             if osh == []:
                 probs.append(0)
                 cnrs.append(0)
                 areas.append(0)
+                areas_pixels.append(0)
                 probs_bb.append(0)
                 cnrs_bb.append(0)
                 areas_bb.append(0)
+                areas_pixels_bb.append(0)
+
             else:
                 hm = self.get_one_heatmap_for_img(hmp)
                 relevant_heat, relevant_bb_heat, rszd_heat = osh.calc_relevant_heat(hm)
@@ -196,16 +202,18 @@ class OneImgOneSeg:
                     #superimposed=cv2.cvtColor(superimposed, cv2.COLOR_RGB2BGR)
                     cv2.imwrite(outf, superimposed)
 
-                prob_grade, cnr, area = osh.calc_grade_by_seg(relevant_heat, rszd_heat, osh.np_msk)
-                prob_grade_bb, cnr_bb, area_bb = osh.calc_grade_by_seg(relevant_bb_heat, rszd_heat, osh.bb_msk)
+                prob_grade, cnr, area, area_pixels = osh.calc_grade_by_seg(relevant_heat, rszd_heat, osh.np_msk)
+                prob_grade_bb, cnr_bb, area_bb, area_pixels_bb = osh.calc_grade_by_seg(relevant_bb_heat, rszd_heat, osh.bb_msk)
                 probs.append(prob_grade)
                 cnrs.append(cnr)
                 areas.append(area)
+                areas_pixels.append(area_pixels)
                 probs_bb.append(prob_grade_bb)
                 cnrs_bb.append(cnr_bb)
                 areas_bb.append(area_bb)
+                areas_pixels_bb.append(area_pixels_bb)
 
-        return probs, cnrs, areas, probs_bb, cnrs_bb, areas_bb
+        return probs, cnrs, areas, areas_pixels, probs_bb, cnrs_bb, areas_bb, areas_pixels_bb
 
 class OneImgAllSegs:
     def __init__(self, alpha: float, img_path: str,
@@ -227,7 +235,7 @@ class OneImgAllSegs:
             out_sz = seg_data['outSz']
             max_segs_num = seg_data['instances_num']
             oios = OneImgOneSeg(self.alpha, msk_path, face_msk_path, self.img_path, heats_list, max_segs_num, out_sz, self.manip_type)
-            prob_grades, cnrs, areas, prob_grades_bb, cnrs_bb, areas_bb = oios.analyze_img()
+            prob_grades, cnrs, areas, areas_pixels, prob_grades_bb, cnrs_bb, areas_bb, areas_pixels_bb = oios.analyze_img()
             outs[i]['full_path'] = self.img_path
             outs[i]['msk_path'] = seg_data['msk_path']
             outs[i]['outSz'] = seg_data['outSz']
@@ -235,9 +243,11 @@ class OneImgAllSegs:
             outs[i]['prob_grades'] = prob_grades
             outs[i]['cnrs'] = cnrs
             outs[i]['areas'] = areas
+            outs[i]['areas_pixels'] = areas_pixels
             outs[i]['prob_grades_bb'] = prob_grades_bb
             outs[i]['cnrs_bb'] = cnrs_bb
             outs[i]['areas_bb'] = areas_bb
+            outs[i]['areas_pixels_bb'] = areas_pixels_bb
             i = i + 1
         return outs
 
