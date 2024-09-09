@@ -152,7 +152,10 @@ def calc_qualities(df:pd.DataFrame, heats_root:str, heats_names:list[str], out_d
     summary_path = os.path.join(os.path.dirname(out_df_path), 'summary_' + manip_type + '.json')
     cuts_dict={'all':'all','Yes':'valence','No':'valence'}
     catsSegs.summarize_results_and_calc_qualities(res_df,cuts_dict, summary_path)
+    if summary_path.endswith('power.json'):
+        catsSegs.map_names_powered(summary_path, summary_path)
     return summary_path
+
 
 
 #cam_quality_mean, cam_quality_median, cam_res = horsesSegs.calc_map_type_quality(res_df, ['face'], 'cam')
@@ -163,12 +166,12 @@ def run_cats():
         out_path = os.path.join(root_path, 'pytorch_'+type+ft,add)
         return out_path
 
-    heats_names = ['grad_cam','xgrad_cam','grad_cam_plusplus','power_grad_cam']
+    heats_names = ['grad_cam','xgrad_cam','grad_cam_plusplus']
     root_path = '/home/tali/cats_pain_proj'
     net_types = ['vit','dino','resnet50','nest-tiny']
     #net_types = ['dino','nest-tiny']
     run_type =['']
-    manip_type=['']
+    manip_type=['','power']
     summaries = {}
     for rt in run_type:
         for i,type in enumerate(net_types):
@@ -190,11 +193,13 @@ def run_cats():
                     os.remove(file_path)
                 summary_path=calc_qualities(pd.read_csv(inference_file), heats_root,  heats_names,out_df_path, manipulation)
                 if not(summary_path==None):
-                    summaries[type]=summary_path
+                    summaries[type + '_' + manipulation] = summary_path
     return summaries
 
 def plot_cats(net_jsons:dict):
-    heats_names = ['grad_cam', 'xgrad_cam', 'grad_cam_plusplus', 'power_grad_cam']
+    heats_names = ['grad_cam', 'xgrad_cam', 'grad_cam_plusplus',
+                   'grad_cam_power', 'xgrad_cam_power', 'grad_cam_plusplus_power']
+
     catsSegs = CatsSegs(alpha=0.8, df=pd.DataFrame(), out_sz=(28, 28), res_folder='/home/tali',
                             imgs_root='/home/tali/cats_pain_proj/face_images/masked_images/',
                             msks_root='/home/tali/cats_pain_proj/',
@@ -202,9 +207,14 @@ def plot_cats(net_jsons:dict):
                             segs_names=["face", "ears", "eyes", "mouth"], segs_max_det=[1, 1, 1, 1],
                             heatmaps_names=heats_names, manip_type='')
     net_colors = {'resnet50': 'red', 'vit': 'green', 'dino': 'blue', 'nest-tiny': 'orange'}
+    #net_colors = {'dino': 'blue', 'nest-tiny': 'orange'}
     outdir = '/home/tali/cats_pain_proj/plots/'
     os.makedirs(outdir, exist_ok=True)
-    catsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir)
+    catsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'scaled')
+    catsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'quals')
+    net_colors = {'dino': 'blue', 'nest-tiny': 'orange'}
+    catsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'seg_quals')
+    catsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'seg_scaled')
 
 if __name__ == "__main__":
     # img_path = '/home/tali/cats_pain_proj/face_images/pain/cat_10_video_1.1.jpg'

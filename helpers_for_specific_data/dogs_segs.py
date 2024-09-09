@@ -147,20 +147,23 @@ def calc_qualities(inferred_csv_path:str, heats_root:str, out_df_path:str, heats
     summary_path = os.path.join(os.path.dirname(out_df_path),'summary_'+manip_type+'.json')
     cuts_dict = {'all': 'all', 'P': 'valence', 'N': 'valence'}
     dogSegs.summarize_results_and_calc_qualities(res_df, cuts_dict, summary_path)
+    if summary_path.endswith('power.json'):
+        dogSegs.map_names_powered(summary_path, summary_path)
     return summary_path
+
 
 def run_dogs():
     def create_pytorch_path(type:str,ft:str, root_path:str,add:str)->str:
         out_path = os.path.join(root_path, 'pytorch_'+type+ft,add)
         return out_path
 
-    heats_names = ['grad_cam','xgrad_cam','grad_cam_plusplus','power_grad_cam']
+    heats_names = ['grad_cam','xgrad_cam','grad_cam_plusplus']
     root_path = '/home/tali/dogs_annika_proj'
-    types_pytorch = ['vit','dino','resnet50','nest-tiny']
-    #   types_pytorch = ['dino']
+    types_pytorch = ['dino','vit','resnet50','nest-tiny']
+    #types_pytorch = ['dino','nest-tiny']
 
     run_type =['']
-    manip_type=['']
+    manip_type=['','power']
     summaries = {}
     for rt in run_type:
         for i,type in enumerate(types_pytorch):
@@ -177,25 +180,34 @@ def run_dogs():
                 jpg_files = glob.glob(os.path.join(heats_root, "**", "*.jpg"), recursive=True)
 
                 # Delete each .jpg file
-                for file_path in jpg_files:
-                    os.remove(file_path)
+                #for file_path in jpg_files:
+                #    os.remove(file_path)
                 summary_path=calc_qualities(inference_file, heats_root, out_df_path, heats_names, manipulation)
-                summaries[type] = summary_path
+                summaries[type + '_' + manipulation] = summary_path
     return summaries
 
 
 def plot_dogs(net_jsons:dict):
-    heats_names = ['grad_cam', 'xgrad_cam', 'grad_cam_plusplus', 'power_grad_cam']
+    heats_names = ['grad_cam', 'xgrad_cam', 'grad_cam_plusplus',
+                   'grad_cam_power', 'xgrad_cam_power', 'grad_cam_plusplus_power']
+
     dogsSegs = DogsSegs(alpha=0.8, df=pd.DataFrame(), out_sz=(28, 28), res_folder='/home/tali',
                             imgs_root='/home/tali/dogs_annika_proj/data_set/',
                             msks_root='/home/tali/dogs_annika_proj/data_set/',
                             heats_root='',
-                            segs_names=["face", "ears", "eyes", "mouth"], segs_max_det=[1, 1, 1, 1],
+                            segs_names=["face", "ear", "eye", "mouth"], segs_max_det=[1, 1, 1, 1],
                             heatmaps_names=heats_names, manip_type='')
     net_colors = {'resnet50': 'red', 'vit': 'green', 'dino': 'blue', 'nest-tiny': 'orange'}
+    #net_colors = {'dino': 'blue', 'nest-tiny': 'orange'}
+
     outdir = '/home/tali/dogs_annika_proj/plots/'
     os.makedirs(outdir, exist_ok=True)
-    dogsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir)
+    dogsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'scaled')
+    dogsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'quals')
+    net_colors = {'dino': 'blue', 'nest-tiny': 'orange'}
+    dogsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'seg_quals')
+    dogsSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'seg_scaled')
+
 
 if __name__ == "__main__":
     summaries = run_dogs()
