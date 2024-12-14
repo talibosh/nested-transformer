@@ -165,11 +165,11 @@ def plot_horses(net_jsons:dict):
     outdir = '/home/tali/horses/plots/'
     os.makedirs(outdir,exist_ok=True)
 
-    horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'scaled')
-    horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons,outdir,'quals')
-    net_colors = {'dino': 'blue', 'nest-tiny': 'orange'}
+    #horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'scaled')
+    #horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons,outdir,'quals')
+    #net_colors = {'dino': 'blue', 'nest-tiny': 'orange'}
     horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'seg_quals')
-    horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'seg_scaled')
+    #horsesSegs.go_over_jsons_and_plot(net_colors, net_jsons, outdir, 'seg_scaled')
 
 if __name__ == "__main__":
     # img_path = '/home/tali/cats_pain_proj/face_images/pain/cat_10_video_1.1.jpg'

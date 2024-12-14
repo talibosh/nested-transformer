@@ -283,6 +283,20 @@ class AnimalSegs:
         total_scaled_high = 0
         num_of_used_segs = self.segs_names.__len__()
         res=dict()
+        means=[]
+        #find mean of areas
+        for seg_name in self.segs_names:
+            if seg_name in segs_to_ignore:
+                num_of_used_segs=num_of_used_segs-1
+                continue
+            areas = np.array(df[seg_name + "_area"].tolist())
+            areas = areas[areas>0]
+            means.append(np.mean(areas))
+        min_value = min(means)
+        max_value = max(means)
+        restrain_factor = 1#1-(min_value/max_value)
+
+
         for seg_name in self.segs_names:
             if seg_name in segs_to_ignore:
                 num_of_used_segs=num_of_used_segs-1
@@ -292,18 +306,20 @@ class AnimalSegs:
             seg_area_pixels = np.array(df[seg_name + "_area_pixels"].tolist())
             seg_relevant_locs = np.nonzero(seg_area)
             seg_ng = np.divide(seg_prob[seg_relevant_locs], seg_area[seg_relevant_locs])
-            seg_prob_density = np.divide(seg_prob[seg_relevant_locs], seg_area_pixels[seg_relevant_locs])
+            good_ng = seg_ng[seg_ng > 1]
+            perc_good_ng = good_ng.__len__() / seg_ng.__len__()
+            seg_ng0 = np.divide(seg_prob[seg_relevant_locs], np.power(seg_area[seg_relevant_locs],restrain_factor))
+            seg_prob_density = np.divide(seg_prob[seg_relevant_locs], np.power(seg_area_pixels[seg_relevant_locs],restrain_factor))
             seg_scaled_grade = seg_prob_density*100
             seg_prob_mean = np.mean(seg_prob[seg_relevant_locs])
             seg_area_mean = np.mean(seg_area[seg_relevant_locs])
             seg_area_pixels_mean = np.mean(seg_area_pixels[seg_relevant_locs])
             seg_scaled_grade_mean = np.mean(seg_scaled_grade)
-            good_ng = seg_ng[seg_ng > 1]
-            perc_good_ng = good_ng.__len__()/seg_ng.__len__()
 
-            seg_mean_high_ng = np.mean(good_ng) if perc_good_ng>0 else 0
+            #seg_mean_high_ng = np.mean(good_ng) if perc_good_ng>0 else 0
+            seg_mean_high_ng = np.mean(seg_ng0[seg_ng > 1]) if perc_good_ng>0 else 0
             seg_mean_high_scaled_grade = np.mean(seg_scaled_grade[seg_ng > 1]) if perc_good_ng>0 else 0
-            seg_mean = np.mean(seg_ng)
+            seg_mean = np.mean(seg_ng0)
             seg_mean_scaled = np.mean(seg_scaled_grade)
             seg_median = np.median(seg_ng)
             res[seg_name+"_mean"]=seg_mean
@@ -414,8 +430,8 @@ class AnimalSegs:
 
         final_dicts = {}
         keys2chk = list(net_jsons.keys())
-        if plot_type == 'seg_quals' or plot_type == 'seg_scaled':
-            keys2chk = [key for key in keys2chk if key not in ['vit_', 'vit_power', 'resnet50_', 'resnet50_power']]
+        #if plot_type == 'seg_quals' or plot_type == 'seg_scaled':
+        #    keys2chk = [key for key in keys2chk if key not in ['vit_', 'vit_power', 'resnet50_', 'resnet50_power']]
 
         for key in keys2chk:
             dicts = self.create_data_from_summary_json_file(net_jsons[key],plot_type)
@@ -460,11 +476,11 @@ class AnimalSegs:
         if plot_type.startswith('quals'):
             ax.set_ylim(0,2.5)
         if plot_type.startswith('scaled'):
-            ax.set_ylim(0, 0.6)
+            ax.set_ylim(0, 2.5)
         if plot_type.startswith('seg_quals'):
             ax.set_ylim(0, 5)
         if plot_type.startswith('seg_scaled'):
-            ax.set_ylim(0, 1.5)
+            ax.set_ylim(0, 2)
 
             # Set x-ticks and labels
         ax.set_xticks(range(1,1+len(x_labels)))
